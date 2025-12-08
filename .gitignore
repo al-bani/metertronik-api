@@ -1,0 +1,4 @@
+.env
+.vscode/
+*.code-workspace
+lib already installed.txt

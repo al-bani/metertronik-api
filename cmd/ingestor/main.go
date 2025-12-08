@@ -1,0 +1,36 @@
+package main
+
+import (
+	"context"
+	"log"
+
+	"metertronik/internal/handler/amqp"
+	"metertronik/internal/router"
+	"metertronik/internal/service"
+	"metertronik/pkg/config"
+	"metertronik/pkg/database"
+)
+
+func main() {
+	cfg, err := config.Load()
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	influxRepo, cleanupInflux := database.SetupInfluxDB(cfg)
+	defer cleanupInflux()
+
+	RedisRepo, cleanupRedis := database.SetupRedis(cfg)
+	defer cleanupRedis()
+
+	svc := service.NewIngestService(influxRepo, RedisRepo)
+	consumer := amqp.NewConsumer(svc)
+
+	router.SetupWs(RedisRepo, cfg.Port)
+
+	ctx := context.Background()
+	log.Printf("✅ Consumer started, waiting for messages...")
+	if err := consumer.StartConsuming(ctx, cfg.RabbitMQURL); err != nil {
+		log.Fatalf("Failed to start consuming: %v", err)
+	}
+}
