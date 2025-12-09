@@ -54,7 +54,7 @@ func (r *ElectricityRepo) GetRealTimeElectricity(ctx context.Context, deviceID s
 		data.Voltage = record.ValueByKey("voltage").(float64)
 		data.Current = record.ValueByKey("current").(float64)
 		data.Power = record.ValueByKey("power").(float64)
-		data.TotalEnergy = record.ValueByKey("total_energy").(float64)
+		data.TotalEnergy = record.ValueByKey("energy").(float64)
 		data.PowerFactor = record.ValueByKey("power_factor").(float64)
 		data.Frequency = record.ValueByKey("frequency").(float64)
 		data.DeviceID = record.ValueByKey("device_id").(string)
@@ -89,11 +89,13 @@ func (r *ElectricityRepo) SaveRealTimeElectricity(ctx context.Context, electrici
 			"voltage":      electricity.Voltage,
 			"current":      electricity.Current,
 			"power":        electricity.Power,
-			"total_energy": electricity.TotalEnergy,
+			"energy":       electricity.TotalEnergy,
 			"power_factor": electricity.PowerFactor,
 			"frequency":    electricity.Frequency,
+			"power_surge":  electricity.PowerSurge,
+			"power_surge_percentage": electricity.PSPercent,
 		},
-		time.Now().UTC(),
+		electricity.CreatedAt.Time,
 	)
 
 	if err := writeAPI.WritePoint(ctx, point); err != nil {

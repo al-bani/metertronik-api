@@ -21,4 +21,7 @@ type RedisRepo interface {
 
 type PostgresRepo interface {
 	SaveHourlyElectricity(ctx context.Context, hourlyElectricity *entity.HourlyElectricity) error
+	GetHourlyElectricity(ctx context.Context, deviceID string, dataRange int) (*[]entity.HourlyElectricity, error)
+	SaveDailyElectricity(ctx context.Context, dailyElectricity *entity.DailyElectricity) error
+	GetTarrifs(ctx context.Context) (*entity.Tarrifs, error)
 }

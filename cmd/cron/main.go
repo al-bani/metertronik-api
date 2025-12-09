@@ -3,14 +3,13 @@ package main
 import (
 	"context"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
+
 	"time"
 
 	"metertronik/internal/service"
 	"metertronik/pkg/config"
 	"metertronik/pkg/database"
+	"metertronik/pkg/utils"
 )
 
 func main() {
@@ -31,34 +30,29 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	sigChan := utils.SetupSignalChannel()
 
-	ticker := time.NewTicker(1 * time.Hour)
-	defer ticker.Stop()
+	hourlyTicker := time.NewTicker(1 * time.Hour)
+	defer hourlyTicker.Stop()
 
-	log.Println("🚀 Cron scheduler started, running HourlyAggregation for the first time...")
-	runHourlyAggregation(ctx, scv)
+	dailyTicker := time.NewTicker(24 * time.Hour)
+	defer dailyTicker.Stop()
 
-	log.Println("⏰ Scheduler active, will run HourlyAggregation every hour")
+	log.Println("Cron service started")
 
 	for {
 		select {
-		case <-ticker.C:
-			log.Println("⏰ Time to run HourlyAggregation")
-			runHourlyAggregation(ctx, scv)
+		case <-hourlyTicker.C:
+			log.Println("Starting HourlyAggregation")
+			scv.HourlyAggregation(ctx)
+
+		case <-dailyTicker.C:
+			log.Println("Starting DailyAggregation")
+			scv.DailyAggregation(ctx)
+
 		case sig := <-sigChan:
-			log.Printf("📴 Received signal %v, stopping scheduler...", sig)
+			log.Println("Closed...", sig)
 			return
 		}
-	}
-}
-
-func runHourlyAggregation(ctx context.Context, scv *service.CronService) {
-	_, err := scv.HourlyAggregation(ctx)
-	if err != nil {
-		log.Printf("❌ Error running HourlyAggregation: %v", err)
-	} else {
-		log.Println("✅ HourlyAggregation executed successfully")
 	}
 }

@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS hourly_data (
     device_id     VARCHAR(50) NOT NULL,
     ts            TIMESTAMPTZ NOT NULL,
-    usage_kwh     DECIMAL(10,3) NOT NULL,
+    energy     DECIMAL(10,3) NOT NULL,
     total_cost    DECIMAL(15,2) NOT NULL,
     avg_voltage   DECIMAL(10,2),
     avg_current   DECIMAL(10,3),
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS hourly_data (
 CREATE TABLE IF NOT EXISTS daily_data (
     device_id    VARCHAR(50) NOT NULL,
     day          DATE NOT NULL,
-    usage_kwh    DECIMAL(10,3) NOT NULL,
+    energy    DECIMAL(10,3) NOT NULL,
     total_cost   DECIMAL(15,2) NOT NULL,
     avg_voltage  DECIMAL(10,2),
     avg_current  DECIMAL(10,3),

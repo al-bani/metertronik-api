@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log"
 	"metertronik/internal/domain/repository"
+	"metertronik/pkg/utils"
 	"net/http"
 	"time"
 
@@ -46,9 +47,9 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 
 	log.Printf("WebSocket client connected for device: %s", deviceID)
 
-	conn.SetReadDeadline(time.Now().Add(pongWait))
+	conn.SetReadDeadline(utils.TimeNow().Time.Add(pongWait))
 	conn.SetPongHandler(func(string) error {
-		conn.SetReadDeadline(time.Now().Add(pongWait))
+		conn.SetReadDeadline(utils.TimeNow().Time.Add(pongWait))
 		return nil
 	})
 
@@ -68,7 +69,7 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 		for {
 			select {
 			case <-pingTicker.C:
-				conn.SetWriteDeadline(time.Now().Add(writeWait))
+				conn.SetWriteDeadline(utils.TimeNow().Time.Add(writeWait))
 				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 					log.Printf("Failed to send ping: %v", err)
 					return
@@ -105,7 +106,7 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 				continue
 			}
 
-			conn.SetWriteDeadline(time.Now().Add(writeWait))
+			conn.SetWriteDeadline(utils.TimeNow().Time.Add(writeWait))
 			if err := conn.WriteJSON(data); err != nil {
 				log.Printf("Error writing message: %v", err)
 				return

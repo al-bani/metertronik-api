@@ -31,17 +31,15 @@ func (ct *TimeData) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// Coba parse dengan format custom dulu
 	parsed, err := time.Parse(TimeFormat, timeStr)
 	if err != nil {
-		// Jika gagal, coba dengan RFC3339 (format default Go)
 		parsed, err = time.Parse(time.RFC3339, timeStr)
 		if err != nil {
 			return err
 		}
 	}
 
-	ct.Time = parsed
+	ct.Time = parsed.UTC()
 	return nil
 }
 
@@ -60,7 +58,7 @@ func (ct *TimeData) Scan(value interface{}) error {
 
 	switch v := value.(type) {
 	case time.Time:
-		ct.Time = v
+		ct.Time = v.UTC()
 		return nil
 	case []byte:
 		return ct.UnmarshalJSON(v)
@@ -68,7 +66,7 @@ func (ct *TimeData) Scan(value interface{}) error {
 		return ct.UnmarshalJSON([]byte(v))
 	default:
 		if t, ok := value.(time.Time); ok {
-			ct.Time = t
+			ct.Time = t.UTC()
 			return nil
 		}
 		return nil
@@ -76,11 +74,11 @@ func (ct *TimeData) Scan(value interface{}) error {
 }
 
 func NewTimeData(t time.Time) TimeData {
-	return TimeData{Time: t}
+	return TimeData{Time: t.UTC()}
 }
 
 func TimeNow() TimeData {
-	return TimeData{Time: time.Now()}
+	return TimeData{Time: time.Now().UTC()}
 }
 
 func (ct TimeData) Format() string {
@@ -91,7 +89,13 @@ func (ct TimeData) Format() string {
 }
 
 func TimeNowHourly() TimeData {
-	t := time.Now().Truncate(time.Hour)
+	t := time.Now().UTC().Truncate(time.Hour)
+	return TimeData{Time: t.UTC()}
+}
+
+func TimeNowDaily() TimeData {
+	now := time.Now().UTC()
+	t := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	return TimeData{Time: t}
 }
 
@@ -105,5 +109,5 @@ func ParseTimeData(timeStr string) (TimeData, error) {
 		return TimeData{}, err
 	}
 
-	return TimeData{Time: t}, nil
+	return TimeData{Time: t.UTC()}, nil
 }

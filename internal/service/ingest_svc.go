@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"errors"
 	"log"
+	"math"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
 	"time"
@@ -21,6 +23,25 @@ func NewIngestService(influxRepo repository.InfluxRepo, RedisRepo repository.Red
 }
 
 func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *entity.RealTimeElectricity) error {
+	previousData, err := s.RedisRepo.GetLatestElectricity(ctx, data.DeviceID)
+
+	if err != nil {
+		log.Printf("Error getting previous electricity data: %v", err)
+		return err
+	} else if previousData == nil {
+		data.PowerSurge = 0
+		data.PSPercent = 0
+		return errors.New("no previous electricity data found")
+	} else {
+		data.PowerSurge = math.Abs(data.Power - previousData.Power)
+
+		if previousData.Power != 0 {
+			data.PSPercent = math.Abs(((data.Power - previousData.Power) / previousData.Power) * 100)
+		} else {
+			return errors.New("error calculating PSPercent")
+		}
+	}
+
 	errInflux := s.influxRepo.SaveRealTimeElectricity(ctx, data)
 
 	if errInflux != nil {
@@ -44,7 +65,6 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 	} else {
 		log.Println("✅ Updated latest cache data :", data)
 	}
-	log.Println("=============================================================================\n")
 
 	if err := s.RedisRepo.SaveElectricityHistory(ctx, data.DeviceID, data, 5*time.Minute); err != nil {
 		log.Printf("❌ Failed saving history cache: %v", err)
