@@ -26,7 +26,7 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 	if errInflux != nil {
 		log.Printf("Error saving real time electricity to influx: %v", errInflux)
 	} else {
-		//log.Println("Saving data to influxDB ")
+		log.Println("Saving data to influxDB : ", data)
 	}
 
 	changed, _, err := s.RedisRepo.HasChanged(ctx, data.DeviceID, data)
@@ -39,18 +39,15 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 		return nil
 	}
 
-	//log.Printf("Data changed for device %s", data.DeviceID)
-
 	if err := s.RedisRepo.SetLatestElectricity(ctx, data.DeviceID, data); err != nil {
 		log.Printf("❌ Failed saving latest cache: %v", err)
 	} else {
-		//log.Printf("✅ Updated latest cache for device %s", data.DeviceID)
+		log.Println("✅ Updated latest cache data :", data)
 	}
+	log.Println("=============================================================================\n")
 
 	if err := s.RedisRepo.SaveElectricityHistory(ctx, data.DeviceID, data, 5*time.Minute); err != nil {
 		log.Printf("❌ Failed saving history cache: %v", err)
-	} else {
-		//log.Printf("🕒 Saved history for device %s", data.DeviceID)
 	}
 
 	return nil

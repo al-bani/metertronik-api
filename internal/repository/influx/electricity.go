@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"log"
+
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	"github.com/influxdata/influxdb-client-go/v2/api/write"
 )
@@ -57,7 +58,8 @@ func (r *ElectricityRepo) GetRealTimeElectricity(ctx context.Context, deviceID s
 		data.PowerFactor = record.ValueByKey("power_factor").(float64)
 		data.Frequency = record.ValueByKey("frequency").(float64)
 		data.DeviceID = record.ValueByKey("device_id").(string)
-		data.CreatedAt = utils.NewTimeData(record.Time())
+		timeVal := record.ValueByKey("_time").(time.Time)
+		data.CreatedAt = utils.NewTimeData(timeVal)
 
 		dataList = append(dataList, data)
 
@@ -68,7 +70,7 @@ func (r *ElectricityRepo) GetRealTimeElectricity(ctx context.Context, deviceID s
 	}
 
 	if count == 0 {
-		log.Printf("Tidak ada data ditemukan untuk device ID: %s", deviceID)
+		log.Printf("No data found for device ID: %s", deviceID)
 		return nil, nil
 	}
 

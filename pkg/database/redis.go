@@ -11,8 +11,6 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// SetupRedis membuat koneksi ke Redis dan mengembalikan cache repository
-// Jika Redis tidak tersedia, akan mengembalikan nil dan cleanup function kosong
 func SetupRedis(cfg *config.Config) (repository.RedisRepo, func()) {
 	ctx := context.Background()
 
@@ -23,7 +21,7 @@ func SetupRedis(cfg *config.Config) (repository.RedisRepo, func()) {
 	})
 
 	if err := client.Ping(ctx).Err(); err != nil {
-		log.Printf("Warning: Redis tidak tersedia: %v. Caching akan dinonaktifkan.", err)
+		log.Printf("Warning: Redis is not available: %v. Caching will be disabled.", err)
 		client.Close()
 		return nil, func() {}
 	}

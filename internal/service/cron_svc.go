@@ -2,21 +2,24 @@ package service
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log"
 	"math"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
 	"metertronik/pkg/utils"
-	"errors"
 )
 
 type CronService struct {
-	influxRepo repository.InfluxRepo
+	influxRepo   repository.InfluxRepo
+	postgresRepo repository.PostgresRepo
 }
 
-func NewCronService(influxRepo repository.InfluxRepo) *CronService {
+func NewCronService(influxRepo repository.InfluxRepo, postgresRepo repository.PostgresRepo) *CronService {
 	return &CronService{
-		influxRepo: influxRepo,
+		influxRepo:   influxRepo,
+		postgresRepo: postgresRepo,
 	}
 }
 
@@ -28,7 +31,7 @@ func (s *CronService) HourlyAggregation(ctx context.Context) (*entity.HourlyElec
 	}
 
 	if realtimeDataList == nil || len(*realtimeDataList) == 0 {
-		log.Printf("Tidak ada data untuk device %s", deviceID)
+		log.Printf("No data found for device %s", deviceID)
 		return &entity.HourlyElectricity{}, errors.New("no data found for device")
 	}
 
@@ -56,16 +59,21 @@ func (s *CronService) HourlyAggregation(ctx context.Context) (*entity.HourlyElec
 	usageKWh := math.Max(0, dataList[count-1].TotalEnergy-dataList[0].TotalEnergy)
 
 	hourlyData := entity.HourlyElectricity{
-		DeviceID:     deviceID,
-		UsageKWh:     usageKWh,
-		TotalCost:    0,
-		AvgVoltage:   totalVoltage / float64(count),
-		AvgCurrent:   totalCurrent / float64(count),
-		AvgPower:     totalPower / float64(count),
-		AvgFrequency: totalFrequency / float64(count),
-		MinPower:     minPower,
-		MaxPower:     maxPower,
-		CreatedAt:    utils.TimeNow(),
+		DeviceID:   deviceID,
+		UsageKWh:   usageKWh,
+		TotalCost:  0,
+		AvgVoltage: totalVoltage / float64(count),
+		AvgCurrent: totalCurrent / float64(count),
+		AvgPower:   totalPower / float64(count),
+		MinPower:   minPower,
+		MaxPower:   maxPower,
+		TS:         utils.TimeNowHourly(),
+		CreatedAt:  utils.TimeNow(),
+	}
+
+	if err := s.postgresRepo.SaveHourlyElectricity(ctx, &hourlyData); err != nil {
+		log.Printf("Failed to save hourly data to postgres: %v", err)
+		return &hourlyData, fmt.Errorf("failed to save hourly data to postgres: %w", err)
 	}
 
 	return &hourlyData, nil

@@ -7,25 +7,27 @@ import (
 )
 
 type Config struct {
-	// InfluxDB
 	InfluxURL    string
 	InfluxToken  string
 	InfluxOrg    string
 	InfluxBucket string
 
-	// Redis
 	RedisAddr     string
 	RedisPassword string
 
-	// RabbitMQ
 	RabbitMQURL string
 
-	// Server
 	Port string
+
+	PGHOST     string
+	PGPORT     string
+	PGUSER     string
+	PGPASSWORD string
+	PGDATABASE string
 }
 
 func Load() (*Config, error) {
-	_ = godotenv.Load(".env") // Ignore error jika file tidak ada
+	_ = godotenv.Load(".env")
 
 	return &Config{
 		InfluxURL:    getEnv("INFLUX_URL", ""),
@@ -39,6 +41,12 @@ func Load() (*Config, error) {
 		RabbitMQURL: getEnv("RABBITMQ_URL", ""),
 
 		Port: getEnv("PORT", "8080"),
+
+		PGHOST:     getEnv("PG_HOST", ""),
+		PGPORT:     getEnv("PG_PORT", ""),
+		PGUSER:     getEnv("PG_USER", ""),
+		PGPASSWORD: getEnv("PG_PASS", ""),
+		PGDATABASE: getEnv("PG_DTBS", ""),
 	}, nil
 }
 

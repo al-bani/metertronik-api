@@ -6,17 +6,12 @@ import (
 	"time"
 )
 
-// TimeFormat adalah format waktu standar untuk project ini
-// Format: "02-01-2006Z15:04:05Z" (contoh: "13-09-2025Z14:21:30Z")
 const TimeFormat = "02-01-2006Z15:04:05Z"
 
-// TimeData adalah custom time type yang menggunakan format waktu standar
-// Compatible dengan GORM dan JSON marshalling/unmarshalling
 type TimeData struct {
 	time.Time
 }
 
-// MarshalJSON mengimplementasikan json.Marshaler interface
 func (ct TimeData) MarshalJSON() ([]byte, error) {
 	if ct.Time.IsZero() {
 		return []byte("null"), nil
@@ -25,7 +20,6 @@ func (ct TimeData) MarshalJSON() ([]byte, error) {
 	return json.Marshal(formatted)
 }
 
-// UnmarshalJSON mengimplementasikan json.Unmarshaler interface
 func (ct *TimeData) UnmarshalJSON(data []byte) error {
 	var timeStr string
 	if err := json.Unmarshal(data, &timeStr); err != nil {
@@ -37,9 +31,10 @@ func (ct *TimeData) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
+	// Coba parse dengan format custom dulu
 	parsed, err := time.Parse(TimeFormat, timeStr)
 	if err != nil {
-		// Coba parse dengan format lain sebagai fallback
+		// Jika gagal, coba dengan RFC3339 (format default Go)
 		parsed, err = time.Parse(time.RFC3339, timeStr)
 		if err != nil {
 			return err
@@ -50,7 +45,6 @@ func (ct *TimeData) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// Value mengimplementasikan driver.Valuer interface untuk GORM
 func (ct TimeData) Value() (driver.Value, error) {
 	if ct.Time.IsZero() {
 		return nil, nil
@@ -58,7 +52,6 @@ func (ct TimeData) Value() (driver.Value, error) {
 	return ct.Time, nil
 }
 
-// Scan mengimplementasikan sql.Scanner interface untuk GORM
 func (ct *TimeData) Scan(value interface{}) error {
 	if value == nil {
 		ct.Time = time.Time{}
@@ -95,6 +88,11 @@ func (ct TimeData) Format() string {
 		return ""
 	}
 	return ct.Time.Format(TimeFormat)
+}
+
+func TimeNowHourly() TimeData {
+	t := time.Now().Truncate(time.Hour)
+	return TimeData{Time: t}
 }
 
 func ParseTimeData(timeStr string) (TimeData, error) {

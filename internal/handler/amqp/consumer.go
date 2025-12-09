@@ -78,10 +78,11 @@ func (c *Consumer) StartConsuming(ctx context.Context, connStr string) error {
 }
 
 func processMessages(c *Consumer, ctx context.Context, msgs <-chan amqp.Delivery) {
-	for d := range msgs {
+	log.Println("Process messages started")
 
+	for d := range msgs {
 		var data entity.RealTimeElectricity
-		
+
 		err := json.Unmarshal(d.Body, &data)
 		if err != nil {
 			log.Printf("Failed to unmarshal message: %v", err)

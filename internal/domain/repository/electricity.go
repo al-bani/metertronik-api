@@ -18,3 +18,7 @@ type RedisRepo interface {
 	SaveElectricityHistory(ctx context.Context, deviceID string, electricity *entity.RealTimeElectricity, ttl time.Duration) error
 	HasChanged(ctx context.Context, deviceID string, newData *entity.RealTimeElectricity) (bool, *entity.RealTimeElectricity, error)
 }
+
+type PostgresRepo interface {
+	SaveHourlyElectricity(ctx context.Context, hourlyElectricity *entity.HourlyElectricity) error
+}

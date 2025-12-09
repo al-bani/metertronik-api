@@ -11,12 +11,11 @@ import (
 	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 )
 
-// SetupInfluxDB membuat koneksi ke InfluxDB dan mengembalikan repository
 func SetupInfluxDB(cfg *config.Config) (repository.InfluxRepo, func()) {
 	client := influxdb2.NewClient(cfg.InfluxURL, cfg.InfluxToken)
 
 	if _, err := client.Health(context.Background()); err != nil {
-		log.Fatalf("InfluxDB mati: %v", err)
+		log.Fatalf("InfluxDB health check failed: %v", err)
 	}
 
 	repo := repoInflux.NewElectricityRepo(client, cfg.InfluxOrg, cfg.InfluxBucket)

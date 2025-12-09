@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
+	"log"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -88,6 +89,8 @@ func (r *RedisRepo) SaveElectricityHistory(ctx context.Context, deviceID string,
 
 func (r *RedisRepo) HasChanged(ctx context.Context, deviceID string, newData *entity.RealTimeElectricity) (bool, *entity.RealTimeElectricity, error) {
 	oldData, err := r.GetLatestElectricity(ctx, deviceID)
+
+	log.Println("Old Data : ", oldData)
 	if err != nil {
 		return false, nil, err
 	}
