@@ -42,7 +42,7 @@ func (s *ApiService) DailyActivity(ctx context.Context, deviceID string, dateStr
 	return response, nil
 }
 
-func (s *ApiService) DailyList(ctx context.Context, deviceID string, time string, tariff string) (*[]entity.DailyElectricity, error) {
+func (s *ApiService) DailyList(ctx context.Context, deviceID string, time string, tariff string, last string) (*[]entity.DailyElectricity, error) {
 	sortBy := "day asc"
 
 	if time != "" {
@@ -59,7 +59,17 @@ func (s *ApiService) DailyList(ctx context.Context, deviceID string, time string
 		}
 	}
 
-	dailyElectricityList, err := s.postgresRepo.GetDailyElectricityList(ctx, deviceID, sortBy)
+	var lastDate *utils.TimeData
+
+	if last != "" {
+		lastDateData, err := utils.ParseDate(last)
+		if err != nil {
+			return nil, err
+		}
+		lastDate = &lastDateData
+	}
+
+	dailyElectricityList, err := s.postgresRepo.GetDailyElectricityList(ctx, deviceID, sortBy, lastDate)
 
 	if err != nil {
 		return nil, err
@@ -68,7 +78,7 @@ func (s *ApiService) DailyList(ctx context.Context, deviceID string, time string
 	return dailyElectricityList, nil
 }
 
-func (s *ApiService) DailyRange(ctx context.Context, deviceID string, startStr string, endStr string) (*[]entity.DailyElectricity, error) {
+func (s *ApiService) DailyRange(ctx context.Context, deviceID string, startStr string, endStr string, last string) (*[]entity.DailyElectricity, error) {
 	start, err := utils.ParseDate(startStr)
 	if err != nil {
 		return nil, err
@@ -80,7 +90,17 @@ func (s *ApiService) DailyRange(ctx context.Context, deviceID string, startStr s
 		return nil, err
 	}
 
-	dailyElectricityList, err := s.postgresRepo.GetDailyRange(ctx, deviceID, start, end)
+	var lastDate *utils.TimeData
+
+	if last != "" {
+		lastDateData, err := utils.ParseDate(last)
+		if err != nil {
+			return nil, err
+		}
+		lastDate = &lastDateData
+	}
+
+	dailyElectricityList, err := s.postgresRepo.GetDailyRange(ctx, deviceID, start, end, lastDate)
 
 	if err != nil {
 		return nil, err

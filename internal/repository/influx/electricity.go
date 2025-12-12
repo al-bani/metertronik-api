@@ -54,7 +54,7 @@ func (r *ElectricityRepo) GetRealTimeElectricity(ctx context.Context, deviceID s
 		data.Voltage = record.ValueByKey("voltage").(float64)
 		data.Current = record.ValueByKey("current").(float64)
 		data.Power = record.ValueByKey("power").(float64)
-		data.TotalEnergy = record.ValueByKey("energy").(float64)
+		data.Energy = record.ValueByKey("energy").(float64)
 		data.PowerFactor = record.ValueByKey("power_factor").(float64)
 		data.Frequency = record.ValueByKey("frequency").(float64)
 		data.DeviceID = record.ValueByKey("device_id").(string)
@@ -86,13 +86,13 @@ func (r *ElectricityRepo) SaveRealTimeElectricity(ctx context.Context, electrici
 			"device_id": electricity.DeviceID,
 		},
 		map[string]interface{}{
-			"voltage":      electricity.Voltage,
-			"current":      electricity.Current,
-			"power":        electricity.Power,
-			"energy":       electricity.TotalEnergy,
-			"power_factor": electricity.PowerFactor,
-			"frequency":    electricity.Frequency,
-			"power_surge":  electricity.PowerSurge,
+			"voltage":                electricity.Voltage,
+			"current":                electricity.Current,
+			"power":                  electricity.Power,
+			"energy":                 electricity.Energy,
+			"power_factor":           electricity.PowerFactor,
+			"frequency":              electricity.Frequency,
+			"power_surge":            electricity.PowerSurge,
 			"power_surge_percentage": electricity.PSPercent,
 		},
 		electricity.CreatedAt.Time,

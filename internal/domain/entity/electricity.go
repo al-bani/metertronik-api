@@ -10,7 +10,7 @@ type RealTimeElectricity struct {
 	Voltage     float64        `json:"voltage" gorm:"type:decimal(10,2);not null"`
 	Current     float64        `json:"current" gorm:"type:decimal(10,3);not null"`
 	Power       float64        `json:"power" gorm:"type:decimal(10,2);not null"`
-	TotalEnergy float64        `json:"energy" gorm:"type:decimal(15,3);not null"`
+	Energy float64        `json:"energy" gorm:"type:decimal(15,3);not null"`
 	PowerFactor float64        `json:"power_factor" gorm:"type:decimal(4,2);not null"`
 	Frequency   float64        `json:"frequency" gorm:"type:decimal(5,2);not null"`
 	PowerSurge  float64        `json:"power_surge" gorm:"type:decimal(10,2);not null"`
@@ -20,7 +20,7 @@ type RealTimeElectricity struct {
 
 type HourlyElectricity struct {
 	DeviceID    string  `json:"device_id" gorm:"column:device_id;type:varchar(50);not null"`
-	TotalEnergy float64 `json:"energy" gorm:"column:energy;type:decimal(10,3);not null"`
+	Energy float64 `json:"energy" gorm:"column:energy;type:decimal(10,3);not null"`
 	TotalCost   float64 `json:"total_cost" gorm:"column:total_cost;type:decimal(15,2);not null"`
 	AvgVoltage  float64 `json:"avg_voltage" gorm:"column:avg_voltage;type:decimal(10,2)"`
 	AvgCurrent  float64 `json:"avg_current" gorm:"column:avg_current;type:decimal(10,3)"`
@@ -35,7 +35,7 @@ type HourlyElectricity struct {
 type DailyElectricity struct {
 	DeviceID string `json:"device_id" gorm:"column:device_id;type:varchar(50);not null"`
 
-	TotalEnergy float64 `json:"energy" gorm:"column:energy;type:decimal(10,3);not null"`
+	Energy float64 `json:"energy" gorm:"column:energy;type:decimal(10,3);not null"`
 	TotalCost   float64 `json:"total_cost" gorm:"column:total_cost;type:decimal(15,2);not null"`
 	AvgVoltage  float64 `json:"avg_voltage" gorm:"column:avg_voltage;type:decimal(10,2)"`
 	AvgCurrent  float64 `json:"avg_current" gorm:"column:avg_current;type:decimal(10,3)"`
@@ -51,7 +51,7 @@ type MonthlyElectricity struct {
 	ID          int64          `json:"id" gorm:"primaryKey"`
 	DeviceID    string         `json:"device_id" gorm:"index;not null"`
 	MonthDate   utils.TimeData `json:"month_date" gorm:"type:date;not null"`
-	TotalEnergy float64        `json:"energy"`
+	Energy float64        `json:"energy"`
 	TotalCost   float64        `json:"total_cost"`
 	CreatedAt   utils.TimeData `json:"created_at" gorm:"autoCreateTime"`
 }

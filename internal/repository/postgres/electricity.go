@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+
 	"metertronik/internal/domain/entity"
 	"metertronik/pkg/utils"
 
@@ -95,20 +96,34 @@ func (r *ElectricityRepoPostgres) GetDailyElectricity(ctx context.Context, devic
 	return &dailyElectricity, hourlyElectricityList, nil
 }
 
-func (r *ElectricityRepoPostgres) GetDailyElectricityList(ctx context.Context, deviceID string, sortBy string) (*[]entity.DailyElectricity, error) {
+func (r *ElectricityRepoPostgres) GetDailyElectricityList(ctx context.Context, deviceID string, sortBy string, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error) {
 	var dailyElectricityList []entity.DailyElectricity
 
-	if err := r.db.WithContext(ctx).Table("daily_data").Where("device_id = ?", deviceID).Order(sortBy).Find(&dailyElectricityList).Error; err != nil {
+	query := r.db.WithContext(ctx).Table("daily_data").
+		Where("device_id = ?", deviceID)
+
+	if lastDate != nil && !lastDate.Time.IsZero() {
+		query = query.Where("day > ?", lastDate)
+	}
+
+	if err := query.Limit(10).Order(sortBy).Find(&dailyElectricityList).Error; err != nil {
 		return nil, fmt.Errorf("failed to get daily electricity data list: %w", err)
 	}
 
 	return &dailyElectricityList, nil
 }
 
-func (r *ElectricityRepoPostgres) GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData) (*[]entity.DailyElectricity, error) {
+func (r *ElectricityRepoPostgres) GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error) {
 	var dailyElectricityList []entity.DailyElectricity
 
-	if err := r.db.WithContext(ctx).Table("daily_data").Where("device_id = ? AND day BETWEEN ? AND ?", deviceID, start, end).Order("day asc").Find(&dailyElectricityList).Error; err != nil {
+	query := r.db.WithContext(ctx).Table("daily_data").
+		Where("device_id = ? AND day BETWEEN ? AND ?", deviceID, start, end)
+
+	if lastDate != nil && !lastDate.Time.IsZero() {
+		query = query.Where("day > ?", lastDate)
+	}
+
+	if err := query.Limit(10).Order("day asc").Find(&dailyElectricityList).Error; err != nil {
 		return nil, fmt.Errorf("failed to get daily electricity data range: %w", err)
 	}
 

@@ -26,6 +26,6 @@ type PostgresRepo interface {
 	SaveDailyElectricity(ctx context.Context, dailyElectricity *entity.DailyElectricity) error
 	GetDailyElectricity(ctx context.Context, deviceID string, date utils.TimeData) (*entity.DailyElectricity, *[]entity.HourlyElectricity, error)
 	GetTarrifs(ctx context.Context) (*entity.Tarrifs, error)
-	GetDailyElectricityList(ctx context.Context, deviceID string, sortBy string) (*[]entity.DailyElectricity, error)
-	GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData) (*[]entity.DailyElectricity, error)
+	GetDailyElectricityList(ctx context.Context, deviceID string, sortBy string, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error)
+	GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error)
 }

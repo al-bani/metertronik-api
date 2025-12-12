@@ -29,7 +29,7 @@ func isSame(a, b *entity.RealTimeElectricity) bool {
 	return a.Voltage == b.Voltage &&
 		a.Current == b.Current &&
 		a.Power == b.Power &&
-		a.TotalEnergy == b.TotalEnergy &&
+		a.Energy == b.Energy &&
 		a.PowerFactor == b.PowerFactor &&
 		a.Frequency == b.Frequency
 }
@@ -88,7 +88,7 @@ func (r *RedisRepo) SaveElectricityHistory(ctx context.Context, deviceID string,
 
 func (r *RedisRepo) HasChanged(ctx context.Context, deviceID string, newData *entity.RealTimeElectricity) (bool, *entity.RealTimeElectricity, error) {
 	oldData, err := r.GetLatestElectricity(ctx, deviceID)
-	
+
 	if err != nil {
 		return false, nil, err
 	}

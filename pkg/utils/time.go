@@ -3,143 +3,155 @@ package utils
 import (
 	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"time"
 )
 
-const TimeFormat = "02-01-2006Z15:04:05Z"
-
 type TimeData struct {
-	time.Time
+	Time time.Time
 }
 
-func (ct TimeData) MarshalJSON() ([]byte, error) {
-	if ct.Time.IsZero() {
+func (t TimeData) Value() (driver.Value, error) {
+	if t.Time.IsZero() {
+		return nil, nil
+	}
+	return t.Time.UTC(), nil
+}
+
+func (t *TimeData) Scan(value interface{}) error {
+	if value == nil {
+		t.Time = time.Time{}
+		return nil
+	}
+
+	var parsedTime time.Time
+	var err error
+
+	switch v := value.(type) {
+	case time.Time:
+		parsedTime = v
+	case []byte:
+		parsedTime, err = time.Parse(time.RFC3339, string(v))
+		if err != nil {
+			parsedTime, err = time.Parse("2006-01-02 15:04:05.999999999-07:00", string(v))
+			if err != nil {
+				parsedTime, err = time.Parse("2006-01-02", string(v))
+				if err != nil {
+					return err
+				}
+			}
+		}
+	case string:
+		parsedTime, err = time.Parse(time.RFC3339, v)
+		if err != nil {
+			parsedTime, err = time.Parse("2006-01-02 15:04:05.999999999-07:00", v)
+			if err != nil {
+				parsedTime, err = time.Parse("2006-01-02", v)
+				if err != nil {
+					return err
+				}
+			}
+		}
+	default:
+		return errors.New("cannot scan TimeData from value")
+	}
+
+	t.Time = parsedTime.UTC()
+	return nil
+}
+
+func (t TimeData) MarshalJSON() ([]byte, error) {
+	if t.Time.IsZero() {
 		return []byte("null"), nil
 	}
-	formatted := ct.Time.Format(TimeFormat)
-	return json.Marshal(formatted)
+	return json.Marshal(t.Time.UTC().Format(time.RFC3339))
 }
 
-func (ct *TimeData) UnmarshalJSON(data []byte) error {
+func (t *TimeData) UnmarshalJSON(data []byte) error {
+	if string(data) == "null" {
+		t.Time = time.Time{}
+		return nil
+	}
+
 	var timeStr string
 	if err := json.Unmarshal(data, &timeStr); err != nil {
 		return err
 	}
 
-	if timeStr == "" || timeStr == "null" {
-		ct.Time = time.Time{}
-		return nil
-	}
-
-	parsed, err := time.Parse(TimeFormat, timeStr)
+	parsedTime, err := time.Parse(time.RFC3339, timeStr)
 	if err != nil {
-		parsed, err = time.Parse(time.RFC3339, timeStr)
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
-	ct.Time = parsed.UTC()
+	t.Time = parsedTime.UTC()
 	return nil
 }
 
-func (ct TimeData) Value() (driver.Value, error) {
-	if ct.Time.IsZero() {
-		return nil, nil
+func (t TimeData) Format() string {
+	if t.Time.IsZero() {
+		return ""
 	}
-	return ct.Time, nil
+	return t.Time.UTC().Format(time.RFC3339)
 }
 
-func (ct *TimeData) Scan(value interface{}) error {
-	if value == nil {
-		ct.Time = time.Time{}
-		return nil
-	}
-
-	switch v := value.(type) {
-	case time.Time:
-		ct.Time = v.UTC()
-		return nil
-	case []byte:
-		return ct.UnmarshalJSON(v)
-	case string:
-		return ct.UnmarshalJSON([]byte(v))
-	default:
-		if t, ok := value.(time.Time); ok {
-			ct.Time = t.UTC()
-			return nil
-		}
-		return nil
-	}
+func (t TimeData) AddHours(hours int) TimeData {
+	return TimeData{Time: t.Time.UTC().Add(time.Duration(hours) * time.Hour)}
 }
 
-func NewTimeData(t time.Time) TimeData {
-	return TimeData{Time: t.UTC()}
+func (t TimeData) StartOfDay() TimeData {
+	utcTime := t.Time.UTC()
+	year, month, day := utcTime.Date()
+	return TimeData{Time: time.Date(year, month, day, 0, 0, 0, 0, time.UTC)}
 }
 
+func (t TimeData) EndOfDay() TimeData {
+	utcTime := t.Time.UTC()
+	year, month, day := utcTime.Date()
+	return TimeData{Time: time.Date(year, month, day, 23, 59, 59, 999999999, time.UTC)}
+}
+
+func (t TimeData) TruncateHour() TimeData {
+	utcTime := t.Time.UTC()
+	year, month, day := utcTime.Date()
+	hour := utcTime.Hour()
+	return TimeData{Time: time.Date(year, month, day, hour, 0, 0, 0, time.UTC)}
+}
 func TimeNow() TimeData {
 	return TimeData{Time: time.Now().UTC()}
 }
 
-func (ct TimeData) Format() string {
-	if ct.Time.IsZero() {
-		return ""
-	}
-	return ct.Time.Format(TimeFormat)
-}
-
 func TimeNowHourly() TimeData {
-	t := time.Now().UTC().Truncate(time.Hour)
-	return TimeData{Time: t.UTC()}
+	now := time.Now().UTC()
+	year, month, day := now.Date()
+	hour := now.Hour()
+	return TimeData{Time: time.Date(year, month, day, hour, 0, 0, 0, time.UTC)}
 }
 
 func TimeNowDaily() TimeData {
 	now := time.Now().UTC()
-	t := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	return TimeData{Time: t}
-}
-
-func ParseTimeData(timeStr string) (TimeData, error) {
-	if timeStr == "" {
-		return TimeData{}, nil
-	}
-
-	t, err := time.Parse(TimeFormat, timeStr)
-	if err != nil {
-		return TimeData{}, err
-	}
-
-	return TimeData{Time: t.UTC()}, nil
+	year, month, day := now.Date()
+	return TimeData{Time: time.Date(year, month, day, 0, 0, 0, 0, time.UTC)}
 }
 
 func ParseDate(dateStr string) (TimeData, error) {
 	if dateStr == "" {
-		return TimeData{}, nil
+		return TimeData{}, errors.New("date string is empty")
 	}
 
-	t, err := time.Parse("2006-01-02", dateStr)
+	var parsedTime time.Time
+	var err error
+
+	parsedTime, err = time.Parse(time.RFC3339, dateStr)
 	if err != nil {
-		return TimeData{}, err
+		parsedTime, err = time.Parse("2006-01-02", dateStr)
+		if err != nil {
+			return TimeData{}, err
+		}
 	}
 
-	t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
-	return TimeData{Time: t.UTC()}, nil
+	return TimeData{Time: parsedTime.UTC()}, nil
 }
 
-func (ct TimeData) StartOfDay() TimeData {
-	t := time.Date(ct.Time.Year(), ct.Time.Month(), ct.Time.Day(), 0, 0, 0, 0, ct.Time.Location())
+func NewTimeData(t time.Time) TimeData {
 	return TimeData{Time: t.UTC()}
-}
-
-func (ct TimeData) EndOfDay() TimeData {
-	t := time.Date(ct.Time.Year(), ct.Time.Month(), ct.Time.Day(), 23, 59, 59, 999999999, ct.Time.Location())
-	return TimeData{Time: t.UTC()}
-}
-
-func (ct TimeData) AddHours(hours int) TimeData {
-	return TimeData{Time: ct.Time.Add(time.Duration(hours) * time.Hour)}
-}
-
-func (ct TimeData) TruncateHour() TimeData {
-	return TimeData{Time: ct.Time.Truncate(time.Hour).UTC()}
 }

@@ -81,13 +81,20 @@ func processMessages(c *Consumer, ctx context.Context, msgs <-chan amqp.Delivery
 	log.Println("Process messages started")
 
 	for d := range msgs {
+
 		var data entity.RealTimeElectricity
 
 		err := json.Unmarshal(d.Body, &data)
 		if err != nil {
-			log.Printf("Failed to unmarshal message: %v", err)
+			log.Printf("❌ Failed to unmarshal message: %v", err)
+			log.Printf("   Message body: %s", string(d.Body))
 			continue
 		}
-		c.svc.ProcessRealTimeElectricity(ctx, &data)
+
+		if err := c.svc.ProcessRealTimeElectricity(ctx, &data); err != nil {
+			log.Printf("❌ Error processing electricity data: %v", err)
+		} else {
+			log.Printf("✅ Successfully processed electricity data for device: %s", data.DeviceID)
+		}
 	}
 }

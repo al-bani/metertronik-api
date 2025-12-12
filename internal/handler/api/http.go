@@ -42,8 +42,10 @@ func (h *ApiHandler) GetDailyList(c *gin.Context) {
 	id := c.Param("id")
 	time := c.Query("time")
 	tariff := c.Query("tariff")
+	lastDate := c.Query("last")
 
-	data, err := h.apiService.DailyList(c.Request.Context(), id, time, tariff)
+	data, err := h.apiService.DailyList(c.Request.Context(), id, time, tariff, lastDate)
+
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
@@ -51,10 +53,16 @@ func (h *ApiHandler) GetDailyList(c *gin.Context) {
 		return
 	}
 
+	var lastDateData string
+	if data != nil && len(*data) > 0 {
+		lastDateData = (*data)[len(*data)-1].Day.Format()
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"message": "OK",
-		"id":      id,
-		"data":    data,
+		"message":   "OK",
+		"id":        id,
+		"data":      data,
+		"last_date": lastDateData,
 	})
 }
 
@@ -62,14 +70,20 @@ func (h *ApiHandler) GetDailyRange(c *gin.Context) {
 	id := c.Param("id")
 	startDate := c.Query("start")
 	endDate := c.Query("end")
+	lastDate := c.Query("last")
 
-	data, err := h.apiService.DailyRange(c.Request.Context(), id, startDate, endDate)
+	data, err := h.apiService.DailyRange(c.Request.Context(), "DEVICE-001", startDate, endDate, lastDate)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return
+	}
+
+	var lastDateData string
+	if data != nil && len(*data) > 0 {
+		lastDateData = (*data)[len(*data)-1].Day.Format()
 	}
 
 	c.JSON(http.StatusOK, gin.H{
@@ -78,5 +92,6 @@ func (h *ApiHandler) GetDailyRange(c *gin.Context) {
 		"start":   startDate,
 		"end":     endDate,
 		"data":    data,
+		"last_date": lastDateData,
 	})
 }

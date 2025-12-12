@@ -39,6 +39,8 @@ func main() {
 	defer dailyTicker.Stop()
 
 	log.Println("Cron service started")
+	scv.DailyAggregation(ctx)
+	
 
 	for {
 		select {
