@@ -111,3 +111,35 @@ func ParseTimeData(timeStr string) (TimeData, error) {
 
 	return TimeData{Time: t.UTC()}, nil
 }
+
+func ParseDate(dateStr string) (TimeData, error) {
+	if dateStr == "" {
+		return TimeData{}, nil
+	}
+
+	t, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		return TimeData{}, err
+	}
+
+	t = time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC)
+	return TimeData{Time: t.UTC()}, nil
+}
+
+func (ct TimeData) StartOfDay() TimeData {
+	t := time.Date(ct.Time.Year(), ct.Time.Month(), ct.Time.Day(), 0, 0, 0, 0, ct.Time.Location())
+	return TimeData{Time: t.UTC()}
+}
+
+func (ct TimeData) EndOfDay() TimeData {
+	t := time.Date(ct.Time.Year(), ct.Time.Month(), ct.Time.Day(), 23, 59, 59, 999999999, ct.Time.Location())
+	return TimeData{Time: t.UTC()}
+}
+
+func (ct TimeData) AddHours(hours int) TimeData {
+	return TimeData{Time: ct.Time.Add(time.Duration(hours) * time.Hour)}
+}
+
+func (ct TimeData) TruncateHour() TimeData {
+	return TimeData{Time: ct.Time.Truncate(time.Hour).UTC()}
+}

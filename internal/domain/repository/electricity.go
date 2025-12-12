@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"metertronik/internal/domain/entity"
+	"metertronik/pkg/utils"
 	"time"
 )
 
@@ -21,7 +22,10 @@ type RedisRepo interface {
 
 type PostgresRepo interface {
 	SaveHourlyElectricity(ctx context.Context, hourlyElectricity *entity.HourlyElectricity) error
-	GetHourlyElectricity(ctx context.Context, deviceID string, dataRange int) (*[]entity.HourlyElectricity, error)
+	GetHourlyElectricity(ctx context.Context, deviceID string, hours int, date *utils.TimeData) (*[]entity.HourlyElectricity, error)
 	SaveDailyElectricity(ctx context.Context, dailyElectricity *entity.DailyElectricity) error
+	GetDailyElectricity(ctx context.Context, deviceID string, date utils.TimeData) (*entity.DailyElectricity, *[]entity.HourlyElectricity, error)
 	GetTarrifs(ctx context.Context) (*entity.Tarrifs, error)
+	GetDailyElectricityList(ctx context.Context, deviceID string, sortBy string) (*[]entity.DailyElectricity, error)
+	GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData) (*[]entity.DailyElectricity, error)
 }
