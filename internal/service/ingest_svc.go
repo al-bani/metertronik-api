@@ -11,21 +11,21 @@ import (
 )
 
 type IngestService struct {
-	influxRepo repository.InfluxRepo
-	RedisRepo  repository.RedisRepo
+	influxRepo        repository.InfluxRepo
+	RedisRealtimeRepo repository.RedisRealtimeRepo
 }
 
-func NewIngestService(influxRepo repository.InfluxRepo, RedisRepo repository.RedisRepo) *IngestService {
+func NewIngestService(influxRepo repository.InfluxRepo, RedisRealtimeRepo repository.RedisRealtimeRepo) *IngestService {
 	return &IngestService{
-		influxRepo: influxRepo,
-		RedisRepo:  RedisRepo,
+		influxRepo:        influxRepo,
+		RedisRealtimeRepo: RedisRealtimeRepo,
 	}
 }
 
 func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *entity.RealTimeElectricity) error {
 	log.Printf("\n\n📥 Processing electricity data for device: %s", data.DeviceID)
 
-	previousData, err := s.RedisRepo.GetLatestElectricity(ctx, data.DeviceID)
+	previousData, err := s.RedisRealtimeRepo.GetLatestElectricity(ctx, data.DeviceID)
 
 	if err != nil {
 		log.Printf("⚠️ Error getting previous electricity data: %v", err)
@@ -57,7 +57,7 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 		log.Println("✅ Saving data to influxDB : ", data)
 	}
 
-	changed, _, err := s.RedisRepo.HasChanged(ctx, data.DeviceID, data)
+	changed, _, err := s.RedisRealtimeRepo.HasChanged(ctx, data.DeviceID, data)
 	if err != nil {
 		log.Printf("Error comparing cache: %v", err)
 	}
@@ -67,13 +67,13 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 		return nil
 	}
 
-	if err := s.RedisRepo.SetLatestElectricity(ctx, data.DeviceID, data); err != nil {
+	if err := s.RedisRealtimeRepo.SetLatestElectricity(ctx, data.DeviceID, data); err != nil {
 		log.Printf("❌ Failed saving latest cache: %v", err)
 	} else {
 		log.Println("✅ Updated latest cache data")
 	}
 
-	if err := s.RedisRepo.SaveElectricityHistory(ctx, data.DeviceID, data, 5*time.Minute); err != nil {
+	if err := s.RedisRealtimeRepo.SaveElectricityHistory(ctx, data.DeviceID, data, 5*time.Minute); err != nil {
 		log.Printf("❌ Failed saving history cache: %v", err)
 	}
 

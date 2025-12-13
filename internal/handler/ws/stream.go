@@ -28,12 +28,12 @@ var upgrader = websocket.Upgrader{
 }
 
 type StreamHandler struct {
-	RedisRepo repository.RedisRepo
+	RedisRealtimeRepo repository.RedisRealtimeRepo
 }
 
-func NewStreamHandler(RedisRepo repository.RedisRepo) *StreamHandler {
+func NewStreamHandler(RedisRealtimeRepo repository.RedisRealtimeRepo) *StreamHandler {
 	return &StreamHandler{
-		RedisRepo: RedisRepo,
+		RedisRealtimeRepo: RedisRealtimeRepo,
 	}
 }
 
@@ -85,7 +85,7 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 	for {
 		select {
 		case <-dataTicker.C:
-			data, err := h.RedisRepo.GetLatestElectricity(ctx, deviceID)
+			data, err := h.RedisRealtimeRepo.GetLatestElectricity(ctx, deviceID)
 			if err != nil {
 				log.Printf("Error getting latest electricity data: %v", err)
 				continue

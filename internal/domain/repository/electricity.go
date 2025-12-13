@@ -12,12 +12,23 @@ type InfluxRepo interface {
 	GetRealTimeElectricity(ctx context.Context, deviceID string) (*[]entity.RealTimeElectricity, error)
 }
 
-type RedisRepo interface {
+type RedisRealtimeRepo interface {
 	SetLatestElectricity(ctx context.Context, deviceID string, electricity *entity.RealTimeElectricity) error
 	GetLatestElectricity(ctx context.Context, deviceID string) (*entity.RealTimeElectricity, error)
 	DeleteLatestElectricity(ctx context.Context, deviceID string) error
 	SaveElectricityHistory(ctx context.Context, deviceID string, electricity *entity.RealTimeElectricity, ttl time.Duration) error
 	HasChanged(ctx context.Context, deviceID string, newData *entity.RealTimeElectricity) (bool, *entity.RealTimeElectricity, error)
+}
+
+type RedisBatchRepo interface {
+	GetDailyActivityCache(ctx context.Context, deviceID string, date string) (*entity.DailyElectricity, *[]entity.HourlyElectricity, error)
+	SetDailyActivityCache(ctx context.Context, deviceID string, date string, daily *entity.DailyElectricity, hourly *[]entity.HourlyElectricity, ttl time.Duration) error
+	
+	GetDailyListCache(ctx context.Context, deviceID string, sortBy string, lastDate string) (*[]entity.DailyElectricity, error)
+	SetDailyListCache(ctx context.Context, deviceID string, sortBy string, lastDate string, data *[]entity.DailyElectricity, ttl time.Duration) error
+
+	GetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string) (*[]entity.DailyElectricity, error)
+	SetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string, data *[]entity.DailyElectricity, ttl time.Duration) error
 }
 
 type PostgresRepo interface {

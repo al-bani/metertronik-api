@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	handler "metertronik/internal/handler/api"
+	"metertronik/internal/middleware"
 	httpRouter "metertronik/internal/router/http"
 	"metertronik/internal/service"
 	"metertronik/pkg/config"
@@ -21,10 +22,16 @@ func main() {
 	postgresRepo, cleanupPostgres := database.SetupPostgres(cfg)
 	defer cleanupPostgres()
 
-	api := service.NewApiService(postgresRepo)
+	redisBatchRepo, cleanupRedisBatch := database.SetupRedisRealtimeBatch(cfg)
+	defer cleanupRedisBatch()
+
+	api := service.NewApiService(postgresRepo, redisBatchRepo)
 	apiHandler := handler.NewApiHandler(api)
 
 	router := gin.Default()
+
+	router.Use(middleware.CORSMiddleware())
+
 	httpRouter.SetupRoutes(router, apiHandler)
 	router.Run(":" + cfg.Port)
 

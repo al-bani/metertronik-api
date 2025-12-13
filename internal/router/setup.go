@@ -9,14 +9,14 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func SetupWs(RedisRepo repository.RedisRepo, port string) {
-	if RedisRepo == nil {
-		log.Println("Warning: RedisRepo is nil, WebSocket server will not start")
+func SetupWs(RedisRealtimeRepo repository.RedisRealtimeRepo, port string) {
+	if RedisRealtimeRepo == nil {
+		log.Println("Warning: RedisRealtimeRepo is nil, WebSocket server will not start")
 		return
 	}
 
 	r := gin.Default()
-	websocket.WebSocketRoutes(r, RedisRepo)
+	websocket.WebSocketRoutes(r, RedisRealtimeRepo)
 
 	go func() {
 		log.Printf("🚀 WebSocket server starting on port %s", port)

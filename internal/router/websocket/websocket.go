@@ -9,12 +9,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func WebSocketRoutes(r *gin.Engine, RedisRepo repository.RedisRepo) {
-	if RedisRepo == nil {
+func WebSocketRoutes(r *gin.Engine, RedisRealtimeRepo repository.RedisRealtimeRepo) {
+	if RedisRealtimeRepo == nil {
 		return
 	}
 
-	wsStreamHandler := wsHandler.NewStreamHandler(RedisRepo)
+	wsStreamHandler := wsHandler.NewStreamHandler(RedisRealtimeRepo)
 
 	r.GET("/ws/electricity/:deviceID", func(c *gin.Context) {
 		deviceID := c.Param("deviceID")

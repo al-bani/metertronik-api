@@ -20,13 +20,13 @@ func main() {
 	influxRepo, cleanupInflux := database.SetupInfluxDB(cfg)
 	defer cleanupInflux()
 
-	RedisRepo, cleanupRedis := database.SetupRedis(cfg)
+	RedisRealtimeRepo, cleanupRedis := database.SetupRedisRealtime(cfg)
 	defer cleanupRedis()
 
-	svc := service.NewIngestService(influxRepo, RedisRepo)
+	svc := service.NewIngestService(influxRepo, RedisRealtimeRepo)
 	consumer := amqp.NewConsumer(svc)
 
-	router.SetupWs(RedisRepo, cfg.Port)
+	router.SetupWs(RedisRealtimeRepo, cfg.Port)
 
 	ctx := context.Background()
 	log.Printf("✅ Consumer started, waiting for messages...")

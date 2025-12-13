@@ -2,18 +2,21 @@ package service
 
 import (
 	"context"
+	"errors"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
 	"metertronik/pkg/utils"
 )
 
 type ApiService struct {
-	postgresRepo repository.PostgresRepo
+	postgresRepo   repository.PostgresRepo
+	redisBatchRepo repository.RedisBatchRepo
 }
 
-func NewApiService(postgresRepo repository.PostgresRepo) *ApiService {
+func NewApiService(postgresRepo repository.PostgresRepo, redisBatchRepo repository.RedisBatchRepo) *ApiService {
 	return &ApiService{
-		postgresRepo: postgresRepo,
+		postgresRepo:   postgresRepo,
+		redisBatchRepo: redisBatchRepo,
 	}
 }
 
@@ -25,13 +28,47 @@ type DailyActivityResponse struct {
 func (s *ApiService) DailyActivity(ctx context.Context, deviceID string, dateStr string) (*DailyActivityResponse, error) {
 	date, err := utils.ParseDate(dateStr)
 
+	var dailyElectricity *entity.DailyElectricity
+	var hourlyElectricityList *[]entity.HourlyElectricity
+
 	if err != nil {
 		return nil, err
 	}
 
-	dailyElectricity, hourlyElectricityList, err := s.postgresRepo.GetDailyElectricity(ctx, deviceID, date)
+	if date.Time.IsZero() {
+		return nil, errors.New("date parameter is required")
+	}
+
+	if s.redisBatchRepo != nil {
+		dailyElectricity, hourlyElectricityList, err = s.redisBatchRepo.GetDailyActivityCache(ctx, deviceID, dateStr)
+		if err == nil {
+			
+			response := &DailyActivityResponse{
+				Daily:  dailyElectricity,
+				Hourly: hourlyElectricityList,
+			}
+			return response, nil
+		}
+	}
+
+	dailyElectricity, hourlyElectricityList, err = s.postgresRepo.GetDailyElectricity(ctx, deviceID, date)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.redisBatchRepo != nil {
+		duration := utils.Days(0)
+		
+		if date == utils.TimeNowDaily() {
+			duration = utils.Minutes(5)
+		} else {
+			duration = utils.Days(30)
+		}
+
+		err = s.redisBatchRepo.SetDailyActivityCache(ctx, deviceID, dateStr, dailyElectricity, hourlyElectricityList, duration)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	response := &DailyActivityResponse{
@@ -69,10 +106,26 @@ func (s *ApiService) DailyList(ctx context.Context, deviceID string, time string
 		lastDate = &lastDateData
 	}
 
-	dailyElectricityList, err := s.postgresRepo.GetDailyElectricityList(ctx, deviceID, sortBy, lastDate)
+	var dailyElectricityList *[]entity.DailyElectricity
+	var err error
 
+	if s.redisBatchRepo != nil {
+		dailyElectricityList, err = s.redisBatchRepo.GetDailyListCache(ctx, deviceID, sortBy, last)
+		if err == nil {
+			return dailyElectricityList, nil
+		}
+	}
+
+	dailyElectricityList, err = s.postgresRepo.GetDailyElectricityList(ctx, deviceID, sortBy, lastDate)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.redisBatchRepo != nil {
+		err = s.redisBatchRepo.SetDailyListCache(ctx, deviceID, sortBy, last, dailyElectricityList, utils.Days(30))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return dailyElectricityList, nil
@@ -84,10 +137,17 @@ func (s *ApiService) DailyRange(ctx context.Context, deviceID string, startStr s
 		return nil, err
 	}
 
-	end, err := utils.ParseDate(endStr)
+	if start.Time.IsZero() {
+		return nil, errors.New("start date parameter is required")
+	}
 
+	end, err := utils.ParseDate(endStr)
 	if err != nil {
 		return nil, err
+	}
+
+	if end.Time.IsZero() {
+		return nil, errors.New("end date parameter is required")
 	}
 
 	var lastDate *utils.TimeData
@@ -100,10 +160,25 @@ func (s *ApiService) DailyRange(ctx context.Context, deviceID string, startStr s
 		lastDate = &lastDateData
 	}
 
-	dailyElectricityList, err := s.postgresRepo.GetDailyRange(ctx, deviceID, start, end, lastDate)
+	var dailyElectricityList *[]entity.DailyElectricity
 
+	if s.redisBatchRepo != nil {
+		dailyElectricityList, err = s.redisBatchRepo.GetDailyRangeCache(ctx, deviceID, startStr, endStr, last)
+		if err == nil {
+			return dailyElectricityList, nil
+		}
+	}
+
+	dailyElectricityList, err = s.postgresRepo.GetDailyRange(ctx, deviceID, start, end, lastDate)
 	if err != nil {
 		return nil, err
+	}
+
+	if s.redisBatchRepo != nil {
+		err = s.redisBatchRepo.SetDailyRangeCache(ctx, deviceID, startStr, endStr, last, dailyElectricityList, utils.Days(30))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return dailyElectricityList, nil

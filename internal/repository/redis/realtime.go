@@ -11,12 +11,12 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type RedisRepo struct {
+type RedisRealtimeRepo struct {
 	client *redis.Client
 }
 
-func NewRedisRepo(client *redis.Client) repository.RedisRepo {
-	return &RedisRepo{
+func NewRedisRealtimeRepo(client *redis.Client) repository.RedisRealtimeRepo {
+	return &RedisRealtimeRepo{
 		client: client,
 	}
 }
@@ -34,7 +34,7 @@ func isSame(a, b *entity.RealTimeElectricity) bool {
 		a.Frequency == b.Frequency
 }
 
-func (r *RedisRepo) SetLatestElectricity(ctx context.Context, deviceID string, electricity *entity.RealTimeElectricity) error {
+func (r *RedisRealtimeRepo) SetLatestElectricity(ctx context.Context, deviceID string, electricity *entity.RealTimeElectricity) error {
 	key := fmt.Sprintf("electricity:latest:%s", deviceID)
 
 	data, err := json.Marshal(electricity)
@@ -49,7 +49,7 @@ func (r *RedisRepo) SetLatestElectricity(ctx context.Context, deviceID string, e
 	return nil
 }
 
-func (r *RedisRepo) GetLatestElectricity(ctx context.Context, deviceID string) (*entity.RealTimeElectricity, error) {
+func (r *RedisRealtimeRepo) GetLatestElectricity(ctx context.Context, deviceID string) (*entity.RealTimeElectricity, error) {
 	key := fmt.Sprintf("electricity:latest:%s", deviceID)
 
 	data, err := r.client.Get(ctx, key).Result()
@@ -68,7 +68,7 @@ func (r *RedisRepo) GetLatestElectricity(ctx context.Context, deviceID string) (
 	return &electricity, nil
 }
 
-func (r *RedisRepo) SaveElectricityHistory(ctx context.Context, deviceID string, electricity *entity.RealTimeElectricity, ttl time.Duration) error {
+func (r *RedisRealtimeRepo) SaveElectricityHistory(ctx context.Context, deviceID string, electricity *entity.RealTimeElectricity, ttl time.Duration) error {
 	key := fmt.Sprintf("electricity:%s:%s",
 		deviceID,
 		electricity.CreatedAt.Format(),
@@ -86,7 +86,7 @@ func (r *RedisRepo) SaveElectricityHistory(ctx context.Context, deviceID string,
 	return nil
 }
 
-func (r *RedisRepo) HasChanged(ctx context.Context, deviceID string, newData *entity.RealTimeElectricity) (bool, *entity.RealTimeElectricity, error) {
+func (r *RedisRealtimeRepo) HasChanged(ctx context.Context, deviceID string, newData *entity.RealTimeElectricity) (bool, *entity.RealTimeElectricity, error) {
 	oldData, err := r.GetLatestElectricity(ctx, deviceID)
 
 	if err != nil {
@@ -101,7 +101,7 @@ func (r *RedisRepo) HasChanged(ctx context.Context, deviceID string, newData *en
 	return !same, oldData, nil
 }
 
-func (r *RedisRepo) DeleteLatestElectricity(ctx context.Context, deviceID string) error {
+func (r *RedisRealtimeRepo) DeleteLatestElectricity(ctx context.Context, deviceID string) error {
 	key := fmt.Sprintf("electricity:latest:%s", deviceID)
 
 	if err := r.client.Del(ctx, key).Err(); err != nil {

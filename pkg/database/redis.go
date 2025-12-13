@@ -11,7 +11,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-func SetupRedis(cfg *config.Config) (repository.RedisRepo, func()) {
+func SetupRedisRealtime(cfg *config.Config) (repository.RedisRealtimeRepo, func()) {
 	ctx := context.Background()
 
 	client := redis.NewClient(&redis.Options{
@@ -27,11 +27,36 @@ func SetupRedis(cfg *config.Config) (repository.RedisRepo, func()) {
 	}
 
 	log.Println("✅ Redis connected successfully")
-	RedisRepo := repoRedis.NewRedisRepo(client)
+	RedisRealtimeRepo := repoRedis.NewRedisRealtimeRepo(client)
 
 	cleanup := func() {
 		client.Close()
 	}
 
-	return RedisRepo, cleanup
+	return RedisRealtimeRepo, cleanup
+}
+
+func SetupRedisRealtimeBatch(cfg *config.Config) (repository.RedisBatchRepo, func()) {
+	ctx := context.Background()
+
+	client := redis.NewClient(&redis.Options{
+		Addr:     cfg.RedisAddr,
+		Password: cfg.RedisPassword,
+		DB:       0,
+	})
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		log.Printf("Warning: Redis is not available: %v. Caching will be disabled.", err)
+		client.Close()
+		return nil, func() {}
+	}
+
+	log.Println("✅ Redis Batch connected successfully")
+	RedisBatchRepo := repoRedis.NewRedisBatchRepo(client)
+
+	cleanup := func() {
+		client.Close()
+	}
+
+	return RedisBatchRepo, cleanup
 }

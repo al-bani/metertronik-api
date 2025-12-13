@@ -3,12 +3,19 @@ package http
 import (
 	handler "metertronik/internal/handler/api"
 	"github.com/gin-gonic/gin"
+	"net/http"
 )
 
 func SetupRoutes(r *gin.Engine, handler *handler.ApiHandler) {
 	api := r.Group("/v1/api")
 
 	{
+		api.GET("/", func(ctx *gin.Context) {
+			ctx.JSON(http.StatusOK, gin.H{
+				"message": "OK",
+				"version": "1.0.0",
+			})
+		})
 		api.GET("/daily/:id", handler.GetDailyList)
 		api.GET("/daily/:id/detail", handler.GetSpecificDailyActivity)
 		api.GET("/daily/:id/range", handler.GetDailyRange)

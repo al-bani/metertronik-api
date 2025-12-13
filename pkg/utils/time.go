@@ -98,6 +98,26 @@ func (t TimeData) AddHours(hours int) TimeData {
 	return TimeData{Time: t.Time.UTC().Add(time.Duration(hours) * time.Hour)}
 }
 
+func (t TimeData) AddMinutes(minutes int) TimeData {
+	return TimeData{Time: t.Time.UTC().Add(time.Duration(minutes) * time.Minute)}
+}
+
+func (t TimeData) AddDays(days int) TimeData {
+	return TimeData{Time: t.Time.UTC().Add(time.Duration(days) * 24 * time.Hour)}
+}
+
+func Minutes(minutes int) time.Duration {
+	return time.Duration(minutes) * time.Minute
+}
+
+func Hours(hours int) time.Duration {
+	return time.Duration(hours) * time.Hour
+}
+
+func Days(days int) time.Duration {
+	return time.Duration(days) * 24 * time.Hour
+}
+
 func (t TimeData) StartOfDay() TimeData {
 	utcTime := t.Time.UTC()
 	year, month, day := utcTime.Date()
