@@ -2,8 +2,9 @@ package http
 
 import (
 	handler "metertronik/internal/handler/api"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func SetupRoutes(r *gin.Engine, handler *handler.ApiHandler) {

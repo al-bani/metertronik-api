@@ -23,7 +23,7 @@ func NewCronService(influxRepo repository.InfluxRepo, postgresRepo repository.Po
 }
 
 func (s *CronService) DailyAggregation(ctx context.Context) (*entity.DailyElectricity, error) {
-	deviceID := "DEVICE-001"
+	deviceID := "device-001"
 	hourlyDataList, err := s.postgresRepo.GetHourlyElectricity(ctx, deviceID, 24, nil)
 
 	if err != nil {
@@ -88,7 +88,7 @@ func (s *CronService) DailyAggregation(ctx context.Context) (*entity.DailyElectr
 }
 
 func (s *CronService) HourlyAggregation(ctx context.Context) (*entity.HourlyElectricity, error) {
-	deviceID := "esp32-meter-001"
+	deviceID := "device-001"
 	realtimeDataList, err := s.influxRepo.GetRealTimeElectricity(ctx, deviceID)
 	if err != nil {
 		return &entity.HourlyElectricity{}, err

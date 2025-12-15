@@ -72,7 +72,7 @@ func (h *ApiHandler) GetDailyRange(c *gin.Context) {
 	endDate := c.Query("end")
 	lastDate := c.Query("last")
 
-	data, err := h.apiService.DailyRange(c.Request.Context(), "DEVICE-001", startDate, endDate, lastDate)
+	data, err := h.apiService.DailyRange(c.Request.Context(), id, startDate, endDate, lastDate)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -87,11 +87,11 @@ func (h *ApiHandler) GetDailyRange(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "OK",
-		"id":      id,
-		"start":   startDate,
-		"end":     endDate,
-		"data":    data,
+		"message":   "OK",
+		"id":        id,
+		"start":     startDate,
+		"end":       endDate,
+		"data":      data,
 		"last_date": lastDateData,
 	})
 }

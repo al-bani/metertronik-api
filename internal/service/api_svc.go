@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
 	"metertronik/pkg/utils"
@@ -42,7 +43,6 @@ func (s *ApiService) DailyActivity(ctx context.Context, deviceID string, dateStr
 	if s.redisBatchRepo != nil {
 		dailyElectricity, hourlyElectricityList, err = s.redisBatchRepo.GetDailyActivityCache(ctx, deviceID, dateStr)
 		if err == nil {
-			
 			response := &DailyActivityResponse{
 				Daily:  dailyElectricity,
 				Hourly: hourlyElectricityList,
@@ -58,7 +58,7 @@ func (s *ApiService) DailyActivity(ctx context.Context, deviceID string, dateStr
 
 	if s.redisBatchRepo != nil {
 		duration := utils.Days(0)
-		
+
 		if date == utils.TimeNowDaily() {
 			duration = utils.Minutes(5)
 		} else {
@@ -80,7 +80,7 @@ func (s *ApiService) DailyActivity(ctx context.Context, deviceID string, dateStr
 }
 
 func (s *ApiService) DailyList(ctx context.Context, deviceID string, time string, tariff string, last string) (*[]entity.DailyElectricity, error) {
-	sortBy := "day asc"
+	sortBy := "day desc"
 
 	if time != "" {
 		if time == "asc" {
@@ -111,18 +111,21 @@ func (s *ApiService) DailyList(ctx context.Context, deviceID string, time string
 
 	if s.redisBatchRepo != nil {
 		dailyElectricityList, err = s.redisBatchRepo.GetDailyListCache(ctx, deviceID, sortBy, last)
+		log.Println("Getting List from Cache")
 		if err == nil {
 			return dailyElectricityList, nil
 		}
 	}
 
+	log.Println("Getting List from Postgres")
 	dailyElectricityList, err = s.postgresRepo.GetDailyElectricityList(ctx, deviceID, sortBy, lastDate)
 	if err != nil {
 		return nil, err
 	}
 
 	if s.redisBatchRepo != nil {
-		err = s.redisBatchRepo.SetDailyListCache(ctx, deviceID, sortBy, last, dailyElectricityList, utils.Days(30))
+		log.Println("Setting List to Cache")
+		err = s.redisBatchRepo.SetDailyListCache(ctx, deviceID, sortBy, last, dailyElectricityList, utils.Minutes(2))
 		if err != nil {
 			return nil, err
 		}

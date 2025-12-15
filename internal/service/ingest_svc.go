@@ -23,12 +23,12 @@ func NewIngestService(influxRepo repository.InfluxRepo, RedisRealtimeRepo reposi
 }
 
 func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *entity.RealTimeElectricity) error {
-	log.Printf("\n\n📥 Processing electricity data for device: %s", data.DeviceID)
+	log.Printf("\n\nProcessing electricity data for device: %s", data.DeviceID)
 
 	previousData, err := s.RedisRealtimeRepo.GetLatestElectricity(ctx, data.DeviceID)
 
 	if err != nil {
-		log.Printf("⚠️ Error getting previous electricity data: %v", err)
+		log.Printf("Error getting previous electricity data: %v", err)
 		data.PowerSurge = 0
 		data.PSPercent = 0
 	} else if previousData == nil {
@@ -40,7 +40,7 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 		if previousData.Power != 0 {
 			data.PSPercent = math.Abs(((data.Power - previousData.Power) / previousData.Power) * 100)
 		} else {
-			log.Printf("⚠️ Previous power is 0, setting PSPercent to 0")
+			log.Printf("Previous power is 0, setting PSPercent to 0")
 			data.PSPercent = 0
 		}
 	}
@@ -54,7 +54,7 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 	if errInflux != nil {
 		log.Printf("Error saving real time electricity to influx: %v", errInflux)
 	} else {
-		log.Println("✅ Saving data to influxDB : ", data)
+		log.Println("Saving data to influxDB : ", data)
 	}
 
 	changed, _, err := s.RedisRealtimeRepo.HasChanged(ctx, data.DeviceID, data)
@@ -68,13 +68,13 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 	}
 
 	if err := s.RedisRealtimeRepo.SetLatestElectricity(ctx, data.DeviceID, data); err != nil {
-		log.Printf("❌ Failed saving latest cache: %v", err)
+		log.Printf("Failed saving latest cache: %v", err)
 	} else {
-		log.Println("✅ Updated latest cache data")
+		log.Println("Updated latest cache data")
 	}
 
 	if err := s.RedisRealtimeRepo.SaveElectricityHistory(ctx, data.DeviceID, data, 5*time.Minute); err != nil {
-		log.Printf("❌ Failed saving history cache: %v", err)
+		log.Printf("Failed saving history cache: %v", err)
 	}
 
 	return nil

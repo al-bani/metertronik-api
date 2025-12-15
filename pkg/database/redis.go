@@ -17,7 +17,7 @@ func SetupRedisRealtime(cfg *config.Config) (repository.RedisRealtimeRepo, func(
 	client := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisAddr,
 		Password: cfg.RedisPassword,
-		DB:       0,
+		DB:       cfg.RedisDB,
 	})
 
 	if err := client.Ping(ctx).Err(); err != nil {
@@ -26,7 +26,7 @@ func SetupRedisRealtime(cfg *config.Config) (repository.RedisRealtimeRepo, func(
 		return nil, func() {}
 	}
 
-	log.Println("✅ Redis connected successfully")
+	log.Println("Redis connected successfully")
 	RedisRealtimeRepo := repoRedis.NewRedisRealtimeRepo(client)
 
 	cleanup := func() {
@@ -42,7 +42,7 @@ func SetupRedisRealtimeBatch(cfg *config.Config) (repository.RedisBatchRepo, fun
 	client := redis.NewClient(&redis.Options{
 		Addr:     cfg.RedisAddr,
 		Password: cfg.RedisPassword,
-		DB:       0,
+		DB:       cfg.RedisDB,
 	})
 
 	if err := client.Ping(ctx).Err(); err != nil {
@@ -51,7 +51,7 @@ func SetupRedisRealtimeBatch(cfg *config.Config) (repository.RedisBatchRepo, fun
 		return nil, func() {}
 	}
 
-	log.Println("✅ Redis Batch connected successfully")
+	log.Println("Redis Batch connected successfully")
 	RedisBatchRepo := repoRedis.NewRedisBatchRepo(client)
 
 	cleanup := func() {

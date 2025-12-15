@@ -41,3 +41,17 @@ FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 
 CREATE INDEX idx_daily_2025_device ON daily_data_2025(device_id);
 CREATE INDEX idx_daily_2025_day ON daily_data_2025(day);
+
+CREATE TABLE tarifFs (
+    id BIGSERIAL PRIMARY KEY,
+
+    type_tarrif VARCHAR(20) NOT NULL,
+    power_va INTEGER NOT NULL,
+
+    price_per_kwh NUMERIC(10,2),
+
+    effective_from DATE NOT NULL,
+    effective_to DATE,
+
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

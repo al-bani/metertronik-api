@@ -24,12 +24,21 @@ func main() {
 	defer cleanupRedis()
 
 	svc := service.NewIngestService(influxRepo, RedisRealtimeRepo)
-	consumer := amqp.NewConsumer(svc)
+
+	consumerCfg := &amqp.ConsumerConfig{
+		QueueName:     cfg.RabbitMQQueueName,
+		RoutingKey:    cfg.RabbitMQRoutingKey,
+		Exchange:      cfg.RabbitMQExchange,
+		PrefetchCount: cfg.RabbitMQPrefetchCount,
+		RetryDelay:    cfg.RabbitMQRetryDelay,
+		LogInterval:   cfg.ConsumerLogInterval,
+	}
+	consumer := amqp.NewConsumer(svc, consumerCfg)
 
 	router.SetupWs(RedisRealtimeRepo, cfg.Port)
 
 	ctx := context.Background()
-	log.Printf("✅ Consumer started, waiting for messages...")
+	log.Printf("Consumer started, waiting for messages...")
 	if err := consumer.StartConsuming(ctx, cfg.RabbitMQURL); err != nil {
 		log.Fatalf("Failed to start consuming: %v", err)
 	}

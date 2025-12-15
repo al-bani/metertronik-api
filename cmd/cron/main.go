@@ -32,15 +32,15 @@ func main() {
 
 	sigChan := utils.SetupSignalChannel()
 
-	hourlyTicker := time.NewTicker(1 * time.Hour)
+	hourlyTicker := time.NewTicker(cfg.CronHourlyInterval)
 	defer hourlyTicker.Stop()
 
-	dailyTicker := time.NewTicker(24 * time.Hour)
+	dailyTicker := time.NewTicker(cfg.CronDailyInterval)
 	defer dailyTicker.Stop()
 
 	log.Println("Cron service started")
-
-	
+	scv.HourlyAggregation(ctx)
+	scv.DailyAggregation(ctx)
 
 	for {
 		select {

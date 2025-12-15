@@ -28,12 +28,13 @@ func main() {
 	api := service.NewApiService(postgresRepo, redisBatchRepo)
 	apiHandler := handler.NewApiHandler(api)
 
+	gin.SetMode(cfg.GinMode)
 	router := gin.Default()
 
-	router.Use(middleware.CORSMiddleware())
+	router.Use(middleware.CORSMiddleware(cfg))
 
 	httpRouter.SetupRoutes(router, apiHandler)
 	router.Run(":" + cfg.Port)
 
-	log.Printf("✅ API server started on port %s", cfg.Port)
+	log.Printf("API server started on port %s", cfg.Port)
 }

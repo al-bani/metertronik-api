@@ -16,7 +16,7 @@ func WebSocketRoutes(r *gin.Engine, RedisRealtimeRepo repository.RedisRealtimeRe
 
 	wsStreamHandler := wsHandler.NewStreamHandler(RedisRealtimeRepo)
 
-	r.GET("/ws/electricity/:deviceID", func(c *gin.Context) {
+	r.GET("/v1/ws/electricity/:deviceID", func(c *gin.Context) {
 		deviceID := c.Param("deviceID")
 		if deviceID == "" {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "deviceID is required"})

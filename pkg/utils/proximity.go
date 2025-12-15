@@ -1,4 +1,1 @@
 package utils
-
-
-//CEK JARAK NILAI DATA UNTUK REDIS CACHE

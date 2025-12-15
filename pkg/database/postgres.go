@@ -17,8 +17,8 @@ var DB *gorm.DB
 func SetupPostgres(cfg *config.Config) (repository.PostgresRepo, func()) {
 
 	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.PGHOST, cfg.PGPORT, cfg.PGUSER, cfg.PGPASSWORD, cfg.PGDATABASE,
+		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
+		cfg.PGHOST, cfg.PGPORT, cfg.PGUSER, cfg.PGPASSWORD, cfg.PGDATABASE, cfg.PGSSLMODE,
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})

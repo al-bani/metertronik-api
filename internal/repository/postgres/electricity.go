@@ -99,11 +99,17 @@ func (r *ElectricityRepoPostgres) GetDailyElectricity(ctx context.Context, devic
 func (r *ElectricityRepoPostgres) GetDailyElectricityList(ctx context.Context, deviceID string, sortBy string, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error) {
 	var dailyElectricityList []entity.DailyElectricity
 
+	today := utils.TimeNowDaily()
+
 	query := r.db.WithContext(ctx).Table("daily_data").
-		Where("device_id = ?", deviceID)
+		Where("device_id = ? AND day < ?", deviceID, today)
 
 	if lastDate != nil && !lastDate.Time.IsZero() {
-		query = query.Where("day > ?", lastDate)
+		if sortBy == "day asc" || sortBy == "total_cost asc" {
+			query = query.Where("day > ?", lastDate)
+		} else {
+			query = query.Where("day < ?", lastDate)
+		}
 	}
 
 	if err := query.Limit(10).Order(sortBy).Find(&dailyElectricityList).Error; err != nil {
@@ -116,14 +122,16 @@ func (r *ElectricityRepoPostgres) GetDailyElectricityList(ctx context.Context, d
 func (r *ElectricityRepoPostgres) GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error) {
 	var dailyElectricityList []entity.DailyElectricity
 
+	today := utils.TimeNowDaily()
+
 	query := r.db.WithContext(ctx).Table("daily_data").
-		Where("device_id = ? AND day BETWEEN ? AND ?", deviceID, start, end)
+		Where("device_id = ? AND day BETWEEN ? AND ? AND day < ?", deviceID, start, end, today)
 
 	if lastDate != nil && !lastDate.Time.IsZero() {
-		query = query.Where("day > ?", lastDate)
+		query = query.Where("day < ?", lastDate)
 	}
 
-	if err := query.Limit(10).Order("day asc").Find(&dailyElectricityList).Error; err != nil {
+	if err := query.Limit(10).Order("day desc").Find(&dailyElectricityList).Error; err != nil {
 		return nil, fmt.Errorf("failed to get daily electricity data range: %w", err)
 	}
 

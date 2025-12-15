@@ -23,7 +23,7 @@ type RedisRealtimeRepo interface {
 type RedisBatchRepo interface {
 	GetDailyActivityCache(ctx context.Context, deviceID string, date string) (*entity.DailyElectricity, *[]entity.HourlyElectricity, error)
 	SetDailyActivityCache(ctx context.Context, deviceID string, date string, daily *entity.DailyElectricity, hourly *[]entity.HourlyElectricity, ttl time.Duration) error
-	
+
 	GetDailyListCache(ctx context.Context, deviceID string, sortBy string, lastDate string) (*[]entity.DailyElectricity, error)
 	SetDailyListCache(ctx context.Context, deviceID string, sortBy string, lastDate string, data *[]entity.DailyElectricity, ttl time.Duration) error
 
