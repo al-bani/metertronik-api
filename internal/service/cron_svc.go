@@ -3,8 +3,8 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
-	"log"
+	"time"
+
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
 	"metertronik/pkg/utils"
@@ -22,129 +22,121 @@ func NewCronService(influxRepo repository.InfluxRepo, postgresRepo repository.Po
 	}
 }
 
-func (s *CronService) DailyAggregation(ctx context.Context) (*entity.DailyElectricity, error) {
-	deviceID := "device-001"
-	hourlyDataList, err := s.postgresRepo.GetHourlyElectricity(ctx, deviceID, 24, nil)
+// ===================== HOURLY =====================
+func (s *CronService) HourlyAggregation(
+	ctx context.Context,
+	targetHour time.Time,
+) (*entity.HourlyElectricity, error) {
 
+	deviceID := "device-001"
+
+	start := utils.NewTimeData(targetHour)
+	end := utils.NewTimeData(targetHour.Add(time.Hour))
+
+	realtimeDataList, err := s.influxRepo.
+		GetRealTimeElectricityRange(ctx, deviceID, start, end)
+	if err != nil || realtimeDataList == nil {
+		return nil, errors.New("no realtime data for hour")
+	}
+
+	tarrifs, err := s.postgresRepo.GetTarrifs(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	if hourlyDataList == nil || len(*hourlyDataList) == 0 {
-		log.Printf("No data found for device %s", deviceID)
-		return nil, errors.New("no data found for device")
-	}
-
-	dataList := *hourlyDataList
-	count := len(dataList)
-
-	var totalVoltage, totalCurrent, totalPower, Energy float64
-
-	minPower := dataList[0].MinPower
-	maxPower := dataList[0].MaxPower
-
-	for _, data := range dataList {
-		totalVoltage += data.AvgVoltage
-		totalCurrent += data.AvgCurrent
-		totalPower += data.AvgPower
-		Energy += data.Energy
-
-		if data.MinPower < minPower {
-			minPower = data.MinPower
-		}
-		if data.MaxPower > maxPower {
-			maxPower = data.MaxPower
-		}
-	}
-
-	tarrifs, err := s.postgresRepo.GetTarrifs(ctx)
-
-	if err != nil {
-		log.Printf("Failed to get tarrifs: %v", err)
-		return nil, fmt.Errorf("failed to get tarrifs: %w", err)
-	}
-
-	dailyData := entity.DailyElectricity{
-		DeviceID:   deviceID,
-		Energy:     Energy,
-		TotalCost:  (Energy * tarrifs.PricePerKwh) * 1.10,
-		AvgVoltage: totalVoltage / float64(count),
-		AvgCurrent: totalCurrent / float64(count),
-		AvgPower:   totalPower / float64(count),
-		MinPower:   minPower,
-		MaxPower:   maxPower,
-		Day:        utils.TimeNowDaily(),
-		CreatedAt:  utils.TimeNow(),
-	}
-
-	log.Println("Daily Data \ndeviceID: ", dailyData.DeviceID, "\nEnergy: ", dailyData.Energy, "\ntotalCost: ", dailyData.TotalCost, "\navgVoltage: ", dailyData.AvgVoltage, "\navgCurrent: ", dailyData.AvgCurrent, "\navgPower: ", dailyData.AvgPower, "\nminPower: ", dailyData.MinPower, "\nmaxPower: ", dailyData.MaxPower, "\nDay: ", dailyData.Day, "\nCreatedAt: ", dailyData.CreatedAt)
-
-	if err := s.postgresRepo.SaveDailyElectricity(ctx, &dailyData); err != nil {
-		log.Printf("Failed to save daily data to postgres: %v", err)
-		return nil, fmt.Errorf("failed to save daily data to postgres: %w", err)
-	}
-
-	return nil, nil
-}
-
-func (s *CronService) HourlyAggregation(ctx context.Context) (*entity.HourlyElectricity, error) {
-	deviceID := "device-001"
-	realtimeDataList, err := s.influxRepo.GetRealTimeElectricity(ctx, deviceID)
-	if err != nil {
-		return &entity.HourlyElectricity{}, err
-	}
-
-	if realtimeDataList == nil || len(*realtimeDataList) == 0 {
-		log.Printf("No data found for device %s", deviceID)
-		return &entity.HourlyElectricity{}, errors.New("no data found for device")
-	}
-
-	tarrifs, err := s.postgresRepo.GetTarrifs(ctx)
-
-	if err != nil {
-		log.Printf("Failed to get tarrifs: %v", err)
-		return &entity.HourlyElectricity{}, fmt.Errorf("failed to get tarrifs: %w", err)
 	}
 
 	dataList := *realtimeDataList
 	count := len(dataList)
 
-	var totalVoltage, totalCurrent, totalPower, totalFrequency, Energy float64
+	var totalVoltage, totalCurrent, totalPower, totalFrequency, energy float64
 	minPower := dataList[0].Power
 	maxPower := dataList[0].Power
 
-	for _, data := range dataList {
-		totalVoltage += data.Voltage
-		totalCurrent += data.Current
-		totalPower += data.Power
-		totalFrequency += data.Frequency
-		Energy += data.Energy
+	for _, d := range dataList {
+		totalVoltage += d.Voltage
+		totalCurrent += d.Current
+		totalPower += d.Power
+		totalFrequency += d.Frequency
+		energy += d.Energy
 
-		if data.Power < minPower {
-			minPower = data.Power
+		if d.Power < minPower {
+			minPower = d.Power
 		}
-		if data.Power > maxPower {
-			maxPower = data.Power
+		if d.Power > maxPower {
+			maxPower = d.Power
 		}
 	}
 
-	hourlyData := entity.HourlyElectricity{
+	hourly := entity.HourlyElectricity{
 		DeviceID:   deviceID,
-		Energy:     Energy,
-		TotalCost:  (Energy * tarrifs.PricePerKwh) * 1.10,
+		Energy:     energy,
+		TotalCost:  (energy * tarrifs.PricePerKwh) * 1.10,
 		AvgVoltage: totalVoltage / float64(count),
 		AvgCurrent: totalCurrent / float64(count),
 		AvgPower:   totalPower / float64(count),
 		MinPower:   minPower,
 		MaxPower:   maxPower,
-		TS:         utils.TimeNowHourly(),
+		TS:         start,          // ⬅ target hour
+		CreatedAt:  utils.TimeNow(), // metadata saja
+	}
+
+	return &hourly, s.postgresRepo.UpsertHourlyElectricity(ctx, &hourly)
+}
+
+// ===================== DAILY =====================
+func (s *CronService) DailyAggregation(
+	ctx context.Context,
+	targetDay time.Time,
+) (*entity.DailyElectricity, error) {
+
+	deviceID := "device-001"
+
+	start := utils.NewTimeData(targetDay)
+	end := utils.NewTimeData(targetDay.AddDate(0, 0, 1))
+
+	hourlyDataList, err := s.postgresRepo.
+		GetHourlyElectricityRange(ctx, deviceID, start, end)
+	if err != nil || hourlyDataList == nil {
+		return nil, errors.New("no hourly data for day")
+	}
+
+	dataList := *hourlyDataList
+	count := len(dataList)
+
+	var totalVoltage, totalCurrent, totalPower, energy float64
+	minPower := dataList[0].MinPower
+	maxPower := dataList[0].MaxPower
+
+	for _, d := range dataList {
+		totalVoltage += d.AvgVoltage
+		totalCurrent += d.AvgCurrent
+		totalPower += d.AvgPower
+		energy += d.Energy
+
+		if d.MinPower < minPower {
+			minPower = d.MinPower
+		}
+		if d.MaxPower > maxPower {
+			maxPower = d.MaxPower
+		}
+	}
+
+	tarrifs, err := s.postgresRepo.GetTarrifs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	daily := entity.DailyElectricity{
+		DeviceID:   deviceID,
+		Energy:     energy,
+		TotalCost:  (energy * tarrifs.PricePerKwh) * 1.10,
+		AvgVoltage: totalVoltage / float64(count),
+		AvgCurrent: totalCurrent / float64(count),
+		AvgPower:   totalPower / float64(count),
+		MinPower:   minPower,
+		MaxPower:   maxPower,
+		Day:        start,          // ⬅ target day
 		CreatedAt:  utils.TimeNow(),
 	}
 
-	if err := s.postgresRepo.SaveHourlyElectricity(ctx, &hourlyData); err != nil {
-		log.Printf("Failed to save hourly data to postgres: %v", err)
-		return &hourlyData, fmt.Errorf("failed to save hourly data to postgres: %w", err)
-	}
-
-	return &hourlyData, nil
+	return &daily, s.postgresRepo.UpsertDailyElectricity(ctx, &daily)
 }

@@ -104,3 +104,46 @@ func (r *ElectricityRepo) SaveRealTimeElectricity(ctx context.Context, electrici
 
 	return nil
 }
+
+func (r *ElectricityRepo) GetRealTimeElectricityRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData) (*[]entity.RealTimeElectricity, error) {
+	queryAPI := r.client.QueryAPI(r.org)
+
+	query := fmt.Sprintf(`
+		from(bucket: "%s")
+		|> range(start: %s, stop: %s)
+		|> filter(fn: (r) => r["_measurement"] == "electricity" and r["device_id"] == "%s")
+		|> sort(columns: ["_time"])
+		|> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
+	`,
+		r.bucket,
+		start.Format(),
+		end.Format(),
+		deviceID,
+	)
+
+	res, err := queryAPI.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+
+	var list []entity.RealTimeElectricity
+
+	for res.Next() {
+		rec := res.Record()
+		list = append(list, entity.RealTimeElectricity{
+			Voltage:     rec.ValueByKey("voltage").(float64),
+			Current:     rec.ValueByKey("current").(float64),
+			Power:       rec.ValueByKey("power").(float64),
+			Energy:      rec.ValueByKey("energy").(float64),
+			Frequency:   rec.ValueByKey("frequency").(float64),
+			DeviceID:    deviceID,
+			CreatedAt:   utils.NewTimeData(rec.ValueByKey("_time").(time.Time)),
+		})
+	}
+
+	if len(list) == 0 {
+		return nil, nil
+	}
+
+	return &list, nil
+}

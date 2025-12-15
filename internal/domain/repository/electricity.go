@@ -10,6 +10,7 @@ import (
 type InfluxRepo interface {
 	SaveRealTimeElectricity(ctx context.Context, electricity *entity.RealTimeElectricity) error
 	GetRealTimeElectricity(ctx context.Context, deviceID string) (*[]entity.RealTimeElectricity, error)
+	GetRealTimeElectricityRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData) (*[]entity.RealTimeElectricity, error)
 }
 
 type RedisRealtimeRepo interface {
@@ -39,4 +40,7 @@ type PostgresRepo interface {
 	GetTarrifs(ctx context.Context) (*entity.Tarrifs, error)
 	GetDailyElectricityList(ctx context.Context, deviceID string, sortBy string, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error)
 	GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error)
+	GetHourlyElectricityRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData) (*[]entity.HourlyElectricity, error)
+	UpsertHourlyElectricity(ctx context.Context, data *entity.HourlyElectricity) error 
+	UpsertDailyElectricity(ctx context.Context, data *entity.DailyElectricity) error
 }

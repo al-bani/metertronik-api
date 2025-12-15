@@ -8,6 +8,7 @@ import (
 	"metertronik/pkg/utils"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type ElectricityRepoPostgres struct {
@@ -136,4 +137,48 @@ func (r *ElectricityRepoPostgres) GetDailyRange(ctx context.Context, deviceID st
 	}
 
 	return &dailyElectricityList, nil
+}
+
+func (r *ElectricityRepoPostgres) GetHourlyElectricityRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData) (*[]entity.HourlyElectricity, error) {
+	var list []entity.HourlyElectricity
+
+	if err := r.db.WithContext(ctx).
+		Table("hourly_data").
+		Where("device_id = ? AND ts >= ? AND ts < ?", deviceID, start, end).
+		Order("ts ASC").
+		Find(&list).Error; err != nil {
+		return nil, err
+	}
+
+	if len(list) == 0 {
+		return nil, nil
+	}
+
+	return &list, nil
+}
+
+func (r *ElectricityRepoPostgres) UpsertHourlyElectricity(ctx context.Context, data *entity.HourlyElectricity) error {
+	return r.db.WithContext(ctx).
+		Table("hourly_data").
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "device_id"}, {Name: "ts"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"energy", "total_cost", "avg_voltage",
+				"avg_current", "avg_power", "min_power", "max_power",
+			}),
+		}).
+		Create(data).Error
+}
+
+func (r *ElectricityRepoPostgres) UpsertDailyElectricity(ctx context.Context, data *entity.DailyElectricity) error {
+	return r.db.WithContext(ctx).
+		Table("daily_data").
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "device_id"}, {Name: "day"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"energy", "total_cost", "avg_voltage",
+				"avg_current", "avg_power", "min_power", "max_power",
+			}),
+		}).
+		Create(data).Error
 }
