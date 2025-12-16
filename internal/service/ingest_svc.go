@@ -36,9 +36,10 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 		data.PSPercent = 0
 	} else {
 		data.PowerSurge = math.Abs(data.Power - previousData.Power)
+		minBaseline := 50.0
 
-		if previousData.Power != 0 {
-			data.PSPercent = math.Abs(((data.Power - previousData.Power) / previousData.Power) * 100)
+		if previousData.Power >= minBaseline {
+			data.PSPercent = math.Abs((data.PowerSurge / previousData.Power) * 100)
 		} else {
 			log.Printf("Previous power is 0, setting PSPercent to 0")
 			data.PSPercent = 0
@@ -67,6 +68,12 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 		return nil
 	}
 
+	proximityValue := ProximityValue(previousData, data)
+	if !proximityValue {
+		log.Printf("No significant change for device %s, skipping caching", data.DeviceID)
+		return nil
+	}
+
 	if err := s.RedisRealtimeRepo.SetLatestElectricity(ctx, data.DeviceID, data); err != nil {
 		log.Printf("Failed saving latest cache: %v", err)
 	} else {
@@ -78,4 +85,25 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 	}
 
 	return nil
+}
+
+func ProximityValue(previousData *entity.RealTimeElectricity, data *entity.RealTimeElectricity) bool {
+	threshold := 10.0
+
+	diffPercentagePower := math.Abs(((data.Power - previousData.Power) / previousData.Power) * 100)
+	diffPercentageVoltage := math.Abs(((data.Voltage - previousData.Voltage) / previousData.Voltage) * 100)
+	diffPercentageCurrent := math.Abs(((data.Current - previousData.Current) / previousData.Current) * 100)
+	diffPercentageEnergy := math.Abs(((data.Energy - previousData.Energy) / previousData.Energy) * 100)
+	diffPercentagePowerFactor := math.Abs(((data.PowerFactor - previousData.PowerFactor) / previousData.PowerFactor) * 100)
+	diffPercentageFrequency := math.Abs(((data.Frequency - previousData.Frequency) / previousData.Frequency) * 100)
+
+	if data.PowerSurge > 500.0 || data.PSPercent > 15.0 {
+		return true
+	}
+
+	if diffPercentagePower >= threshold || diffPercentageVoltage >= threshold || diffPercentageCurrent >= threshold || diffPercentageEnergy >= threshold || diffPercentagePowerFactor >= threshold || diffPercentageFrequency >= threshold {
+		return true
+	}
+
+	return false
 }

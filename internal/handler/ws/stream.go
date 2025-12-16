@@ -8,7 +8,6 @@ import (
 	"metertronik/pkg/utils"
 	"net/http"
 	"time"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -124,3 +123,4 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 		}
 	}
 }
+
