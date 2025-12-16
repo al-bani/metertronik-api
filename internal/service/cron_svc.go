@@ -22,13 +22,11 @@ func NewCronService(influxRepo repository.InfluxRepo, postgresRepo repository.Po
 	}
 }
 
-// ===================== HOURLY =====================
 func (s *CronService) HourlyAggregation(
 	ctx context.Context,
 	targetHour time.Time,
+	deviceID string,
 ) (*entity.HourlyElectricity, error) {
-
-	deviceID := "device-001"
 
 	start := utils.NewTimeData(targetHour)
 	end := utils.NewTimeData(targetHour.Add(time.Hour))
@@ -75,20 +73,18 @@ func (s *CronService) HourlyAggregation(
 		AvgPower:   totalPower / float64(count),
 		MinPower:   minPower,
 		MaxPower:   maxPower,
-		TS:         start,          // ⬅ target hour
-		CreatedAt:  utils.TimeNow(), // metadata saja
+		TS:         start,
+		CreatedAt:  utils.TimeNow(),
 	}
 
 	return &hourly, s.postgresRepo.UpsertHourlyElectricity(ctx, &hourly)
 }
 
-// ===================== DAILY =====================
 func (s *CronService) DailyAggregation(
 	ctx context.Context,
 	targetDay time.Time,
+	deviceID string,
 ) (*entity.DailyElectricity, error) {
-
-	deviceID := "device-001"
 
 	start := utils.NewTimeData(targetDay)
 	end := utils.NewTimeData(targetDay.AddDate(0, 0, 1))
@@ -134,7 +130,7 @@ func (s *CronService) DailyAggregation(
 		AvgPower:   totalPower / float64(count),
 		MinPower:   minPower,
 		MaxPower:   maxPower,
-		Day:        start,          // ⬅ target day
+		Day:        start,
 		CreatedAt:  utils.TimeNow(),
 	}
 

@@ -5,7 +5,6 @@ import (
 	"log"
 
 	"metertronik/internal/handler/amqp"
-	"metertronik/internal/router"
 	"metertronik/internal/service"
 	"metertronik/pkg/config"
 	"metertronik/pkg/database"
@@ -34,8 +33,6 @@ func main() {
 		LogInterval:   cfg.ConsumerLogInterval,
 	}
 	consumer := amqp.NewConsumer(svc, consumerCfg)
-
-	router.SetupWs(RedisRealtimeRepo, cfg.Port)
 
 	ctx := context.Background()
 	log.Printf("Consumer started, waiting for messages...")

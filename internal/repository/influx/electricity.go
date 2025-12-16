@@ -95,7 +95,7 @@ func (r *ElectricityRepo) SaveRealTimeElectricity(ctx context.Context, electrici
 			"power_surge":            electricity.PowerSurge,
 			"power_surge_percentage": electricity.PSPercent,
 		},
-		electricity.CreatedAt.Time,
+		utils.ToUTC(electricity.CreatedAt.Time),
 	)
 
 	if err := writeAPI.WritePoint(ctx, point); err != nil {
@@ -116,8 +116,8 @@ func (r *ElectricityRepo) GetRealTimeElectricityRange(ctx context.Context, devic
 		|> pivot(rowKey: ["_time"], columnKey: ["_field"], valueColumn: "_value")
 	`,
 		r.bucket,
-		start.Format(),
-		end.Format(),
+		start.FormatUTC(),
+		end.FormatUTC(),
 		deviceID,
 	)
 
@@ -131,13 +131,13 @@ func (r *ElectricityRepo) GetRealTimeElectricityRange(ctx context.Context, devic
 	for res.Next() {
 		rec := res.Record()
 		list = append(list, entity.RealTimeElectricity{
-			Voltage:     rec.ValueByKey("voltage").(float64),
-			Current:     rec.ValueByKey("current").(float64),
-			Power:       rec.ValueByKey("power").(float64),
-			Energy:      rec.ValueByKey("energy").(float64),
-			Frequency:   rec.ValueByKey("frequency").(float64),
-			DeviceID:    deviceID,
-			CreatedAt:   utils.NewTimeData(rec.ValueByKey("_time").(time.Time)),
+			Voltage:   rec.ValueByKey("voltage").(float64),
+			Current:   rec.ValueByKey("current").(float64),
+			Power:     rec.ValueByKey("power").(float64),
+			Energy:    rec.ValueByKey("energy").(float64),
+			Frequency: rec.ValueByKey("frequency").(float64),
+			DeviceID:  deviceID,
+			CreatedAt: utils.NewTimeData(rec.ValueByKey("_time").(time.Time)),
 		})
 	}
 
@@ -146,4 +146,45 @@ func (r *ElectricityRepo) GetRealTimeElectricityRange(ctx context.Context, devic
 	}
 
 	return &list, nil
+}
+
+func (r *ElectricityRepo) GetActiveDeviceIDs(ctx context.Context, hours int) ([]string, error) {
+	queryAPI := r.client.QueryAPI(r.org)
+
+	query := fmt.Sprintf(`
+		from(bucket: "%s")
+		|> range(start: -%dh)
+		|> filter(fn: (r) => r["_measurement"] == "electricity")
+		|> keep(columns: ["device_id"])
+		|> distinct(column: "device_id")
+	`,
+		r.bucket,
+		hours,
+	)
+
+	res, err := queryAPI.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query active device IDs: %w", err)
+	}
+
+	deviceIDSet := make(map[string]bool)
+	var deviceIDs []string
+
+	for res.Next() {
+		rec := res.Record()
+		deviceID, ok := rec.ValueByKey("device_id").(string)
+		if !ok || deviceID == "" {
+			continue
+		}
+		if !deviceIDSet[deviceID] {
+			deviceIDSet[deviceID] = true
+			deviceIDs = append(deviceIDs, deviceID)
+		}
+	}
+
+	if res.Err() != nil {
+		return nil, fmt.Errorf("error reading query result: %w", res.Err())
+	}
+
+	return deviceIDs, nil
 }

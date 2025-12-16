@@ -11,6 +11,29 @@ type TimeData struct {
 	Time time.Time
 }
 
+
+var wibLoc = mustLoadLocation("Asia/Jakarta")
+
+func mustLoadLocation(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		return time.UTC
+	}
+	return loc
+}
+
+func WIBLocation() *time.Location {
+	return wibLoc
+}
+
+func ToWIB(t time.Time) time.Time {
+	return t.In(wibLoc)
+}
+
+func ToUTC(t time.Time) time.Time {
+	return t.In(time.UTC)
+}
+
 func (t TimeData) Value() (driver.Value, error) {
 	if t.Time.IsZero() {
 		return nil, nil
@@ -64,7 +87,7 @@ func (t TimeData) MarshalJSON() ([]byte, error) {
 	if t.Time.IsZero() {
 		return []byte("null"), nil
 	}
-	return json.Marshal(t.Time.UTC().Format(time.RFC3339))
+	return json.Marshal(t.Time.In(wibLoc).Format(time.RFC3339))
 }
 
 func (t *TimeData) UnmarshalJSON(data []byte) error {
@@ -88,6 +111,13 @@ func (t *TimeData) UnmarshalJSON(data []byte) error {
 }
 
 func (t TimeData) Format() string {
+	if t.Time.IsZero() {
+		return ""
+	}
+	return t.Time.In(wibLoc).Format(time.RFC3339)
+}
+
+func (t TimeData) FormatUTC() string {
 	if t.Time.IsZero() {
 		return ""
 	}
@@ -119,38 +149,44 @@ func Days(days int) time.Duration {
 }
 
 func (t TimeData) StartOfDay() TimeData {
-	utcTime := t.Time.UTC()
-	year, month, day := utcTime.Date()
-	return TimeData{Time: time.Date(year, month, day, 0, 0, 0, 0, time.UTC)}
+	wibTime := t.Time.In(wibLoc)
+	year, month, day := wibTime.Date()
+	startWIB := time.Date(year, month, day, 0, 0, 0, 0, wibLoc)
+	return TimeData{Time: startWIB.UTC()}
 }
 
 func (t TimeData) EndOfDay() TimeData {
-	utcTime := t.Time.UTC()
-	year, month, day := utcTime.Date()
-	return TimeData{Time: time.Date(year, month, day, 23, 59, 59, 999999999, time.UTC)}
+	wibTime := t.Time.In(wibLoc)
+	year, month, day := wibTime.Date()
+	endWIB := time.Date(year, month, day, 23, 59, 59, 999999999, wibLoc)
+	return TimeData{Time: endWIB.UTC()}
 }
 
 func (t TimeData) TruncateHour() TimeData {
-	utcTime := t.Time.UTC()
-	year, month, day := utcTime.Date()
-	hour := utcTime.Hour()
-	return TimeData{Time: time.Date(year, month, day, hour, 0, 0, 0, time.UTC)}
+	wibTime := t.Time.In(wibLoc)
+	year, month, day := wibTime.Date()
+	hour := wibTime.Hour()
+	truncWIB := time.Date(year, month, day, hour, 0, 0, 0, wibLoc)
+	return TimeData{Time: truncWIB.UTC()}
 }
 func TimeNow() TimeData {
-	return TimeData{Time: time.Now().UTC()}
+	nowWIB := time.Now().In(wibLoc)
+	return TimeData{Time: nowWIB.UTC()}
 }
 
 func TimeNowHourly() TimeData {
-	now := time.Now().UTC()
-	year, month, day := now.Date()
-	hour := now.Hour()
-	return TimeData{Time: time.Date(year, month, day, hour, 0, 0, 0, time.UTC)}
+	nowWIB := time.Now().In(wibLoc)
+	year, month, day := nowWIB.Date()
+	hour := nowWIB.Hour()
+	truncWIB := time.Date(year, month, day, hour, 0, 0, 0, wibLoc)
+	return TimeData{Time: truncWIB.UTC()}
 }
 
 func TimeNowDaily() TimeData {
-	now := time.Now().UTC()
-	year, month, day := now.Date()
-	return TimeData{Time: time.Date(year, month, day, 0, 0, 0, 0, time.UTC)}
+	nowWIB := time.Now().In(wibLoc)
+	year, month, day := nowWIB.Date()
+	startWIB := time.Date(year, month, day, 0, 0, 0, 0, wibLoc)
+	return TimeData{Time: startWIB.UTC()}
 }
 
 func ParseDate(dateStr string) (TimeData, error) {
