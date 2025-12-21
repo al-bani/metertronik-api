@@ -3,7 +3,6 @@ package postgres
 import (
 	"context"
 	"fmt"
-
 	"metertronik/internal/domain/entity"
 	"metertronik/pkg/utils"
 
@@ -36,6 +35,7 @@ func (r *ElectricityRepoPostgres) SaveDailyElectricity(ctx context.Context, dail
 
 	return nil
 }
+
 
 func (r *ElectricityRepoPostgres) GetTarrifs(ctx context.Context) (*entity.Tarrifs, error) {
 	var tarrifs entity.Tarrifs
@@ -120,7 +120,7 @@ func (r *ElectricityRepoPostgres) GetDailyElectricityList(ctx context.Context, d
 	return &dailyElectricityList, nil
 }
 
-func (r *ElectricityRepoPostgres) GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error) {
+func (r *ElectricityRepoPostgres) GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData, lastDate *utils.TimeData, limit int) (*[]entity.DailyElectricity, error) {
 	var dailyElectricityList []entity.DailyElectricity
 
 	today := utils.TimeNowDaily()
@@ -132,7 +132,8 @@ func (r *ElectricityRepoPostgres) GetDailyRange(ctx context.Context, deviceID st
 		query = query.Where("day < ?", lastDate)
 	}
 
-	if err := query.Limit(10).Order("day desc").Find(&dailyElectricityList).Error; err != nil {
+
+	if err := query.Limit(limit).Order("day desc").Find(&dailyElectricityList).Error; err != nil {
 		return nil, fmt.Errorf("failed to get daily electricity data range: %w", err)
 	}
 
@@ -181,4 +182,27 @@ func (r *ElectricityRepoPostgres) UpsertDailyElectricity(ctx context.Context, da
 			}),
 		}).
 		Create(data).Error
+}
+
+func (r *ElectricityRepoPostgres) UpsertMonthlyElectricity(ctx context.Context, monthlyElectricity *entity.MonthlyElectricity) error {
+	return r.db.WithContext(ctx).
+		Table("monthly_data").
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "device_id"}, {Name: "month"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"energy", "total_cost",
+			}),
+		}).
+		Create(monthlyElectricity).Error
+}
+
+
+func (r *ElectricityRepoPostgres) GetMonthlyElectricity(ctx context.Context, deviceID string) (*[]entity.MonthlyElectricity, error) {
+	var monthlyElectricityList []entity.MonthlyElectricity
+
+	if err := r.db.WithContext(ctx).Table("monthly_data").Where("device_id = ?", deviceID).Find(&monthlyElectricityList).Error; err != nil {
+		return nil, fmt.Errorf("failed to get monthly electricity data: %w", err)
+	}
+
+	return &monthlyElectricityList, nil
 }

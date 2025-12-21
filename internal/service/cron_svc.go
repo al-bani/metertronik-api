@@ -136,3 +136,55 @@ func (s *CronService) DailyAggregation(
 
 	return &daily, s.postgresRepo.UpsertDailyElectricity(ctx, &daily)
 }
+
+func (s *CronService) MonthlyAggregation(
+	ctx context.Context,
+	targetMonth utils.TimeData,
+	deviceID string,
+) (*entity.MonthlyElectricity, error) {
+
+	var dailyList *[]entity.DailyElectricity
+	var err error
+
+	if targetMonth.IsFirstDayOfMonth() {
+		dailyElectricity, _, err := s.postgresRepo.GetDailyElectricity(ctx, deviceID, targetMonth)
+		if err != nil {
+			return nil, err
+		}
+
+		if dailyElectricity != nil {
+			dailyList = &[]entity.DailyElectricity{*dailyElectricity}
+		} else {
+			return nil, errors.New("no daily data for month")
+		}
+	} else {
+		startDate, endDate := targetMonth.GetMonthlyRangeDates()
+
+		dailyList, err = s.postgresRepo.GetDailyRange(ctx, deviceID, startDate, endDate, nil, 32)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if dailyList == nil || len(*dailyList) == 0 {
+		return nil, errors.New("no daily data for month")
+	}
+
+	dataList := *dailyList
+	var totalEnergy, totalCost float64
+
+	for _, d := range dataList {
+		totalEnergy += d.Energy
+		totalCost += d.TotalCost
+	}
+
+	monthly := entity.MonthlyElectricity{
+		DeviceID:  deviceID,
+		Month:     targetMonth.StartOfMonth(),
+		Energy:    totalEnergy,
+		TotalCost: totalCost,
+		CreatedAt: utils.TimeNow(),
+	}
+
+	return &monthly, s.postgresRepo.UpsertMonthlyElectricity(ctx, &monthly)
+}

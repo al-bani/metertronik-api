@@ -94,8 +94,8 @@ func (r *RedisBatchRepo) SetDailyListCache(ctx context.Context, deviceID string,
 	return nil
 }
 
-func (r *RedisBatchRepo) GetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string) (*[]entity.DailyElectricity, error){
-	key := fmt.Sprintf("daily_range:%s:%s:%s:%s", deviceID, start, end, lastDate)
+func (r *RedisBatchRepo) GetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string, limit int) (*[]entity.DailyElectricity, error){
+	key := fmt.Sprintf("daily_range:%s:%s:%s:%s:%d", deviceID, start, end, lastDate, limit)
 
 	data, err := r.client.Get(ctx, key).Result()
 
@@ -114,8 +114,8 @@ func (r *RedisBatchRepo) GetDailyRangeCache(ctx context.Context, deviceID string
 	return &daily, nil
 }
 
-func (r *RedisBatchRepo) SetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string, dailyRange *[]entity.DailyElectricity, ttl time.Duration) error{
-	key := fmt.Sprintf("daily_range:%s:%s:%s:%s", deviceID, start, end, lastDate)
+func (r *RedisBatchRepo) SetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string, limit int, dailyRange *[]entity.DailyElectricity, ttl time.Duration) error{
+	key := fmt.Sprintf("daily_range:%s:%s:%s:%s:%d", deviceID, start, end, lastDate, limit)
 
 	data, err := json.Marshal(dailyRange)
 

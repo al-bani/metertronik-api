@@ -30,20 +30,16 @@ func main() {
 
 	sigChan := utils.SetupSignalChannel()
 
-	now := time.Now().In(utils.WIBLocation())
+	now := utils.TimeNow()
 
 	nextHour := now.Truncate(time.Hour).Add(time.Hour)
 
-	nextDay := time.Date(
-		now.Year(), now.Month(), now.Day(),
-		0, 0, 0, 0,
-		utils.WIBLocation(),
-	).Add(24 * time.Hour)
+	nextDay := now.StartOfDay().Add(24 * time.Hour)
 
-	log.Printf("[INIT] Next hourly aggregation in %s\n", time.Until(nextHour).Round(time.Minute))
-	log.Printf("[INIT] Next daily aggregation in %s\n", time.Until(nextDay).Round(time.Minute))
+	log.Printf("[INIT] Next hourly aggregation in %s\n", utils.TimeUntil(nextHour).Round(time.Minute))
+	log.Printf("[INIT] Next daily aggregation in %s\n", utils.TimeUntil(nextDay).Round(time.Minute))
 
-	hourlyTimer := time.NewTimer(time.Until(nextHour))
+	hourlyTimer := time.NewTimer(utils.TimeUntil(nextHour))
 
 	reminderTicker := time.NewTicker(10 * time.Minute)
 
@@ -70,7 +66,7 @@ func main() {
 		select {
 
 		case <-reminderTicker.C:
-			now := time.Now().In(utils.WIBLocation())
+			now := utils.TimeNow()
 
 			devices, err := influxRepo.GetActiveDeviceIDs(ctx, 48)
 			if err == nil && len(devices) > 0 {
@@ -80,24 +76,20 @@ func main() {
 
 			nextHourly := now.Truncate(time.Hour).Add(time.Hour)
 
-			var nextDaily time.Time
-			if now.Hour() < 24 {
-				nextDaily = time.Date(
-					now.Year(), now.Month(), now.Day(),
-					0, 0, 0, 0,
-					utils.WIBLocation(),
-				).Add(24 * time.Hour)
+			var nextDaily utils.TimeData
+			if now.Time.Hour() < 24 {
+				nextDaily = now.StartOfDay().Add(24 * time.Hour)
 			}
 
 			log.Printf(
-				"[REMINDER] Hourly in %s | Daily in %s (WIB) | Active devices: %d\n",
-				time.Until(nextHourly).Round(time.Minute),
-				time.Until(nextDaily).Round(time.Minute),
+				"[REMINDER] Hourly in %s | Daily in %s (UTC) | Active devices: %d\n",
+				utils.TimeUntil(nextHourly).Round(time.Minute),
+				utils.TimeUntil(nextDaily).Round(time.Minute),
 				len(activeDevices),
 			)
 
 		case <-hourlyC:
-			now := time.Now().In(utils.WIBLocation())
+			now := utils.TimeNow()
 
 			devices, err := influxRepo.GetActiveDeviceIDs(ctx, 48)
 			if err == nil && len(devices) > 0 {
@@ -108,27 +100,27 @@ func main() {
 				Add(-time.Hour).
 				Truncate(time.Hour)
 
-			log.Printf("[RUN] HourlyAggregation for (WIB): %s | Processing %d device(s)",
-				targetHour.Format(time.RFC3339), len(activeDevices))
+			log.Printf("[RUN] HourlyAggregation for (UTC): %s | Processing %d device(s)",
+				targetHour.Format(), len(activeDevices))
 
 			for _, deviceID := range activeDevices {
 				log.Printf("[RUN] Processing device: %s", deviceID)
-				if _, err := cronSvc.HourlyAggregation(ctx, targetHour, deviceID); err != nil {
+				if _, err := cronSvc.HourlyAggregation(ctx, targetHour.Time, deviceID); err != nil {
 					log.Printf("[ERROR] HourlyAggregation for device %s: %v", deviceID, err)
 				} else {
 					log.Printf("[SUCCESS] HourlyAggregation completed for device: %s", deviceID)
 				}
 			}
 
-			if targetHour.Hour() == 23 {
+			if targetHour.Time.Hour() == 23 {
 				targetDay := targetHour.Truncate(24 * time.Hour)
 
 				log.Printf("[RUN] DailyAggregation for: %s | Processing %d device(s)",
-					targetDay.Format("2006-01-02"), len(activeDevices))
+					targetDay.FormatLayout("2006-01-02"), len(activeDevices))
 
 				for _, deviceID := range activeDevices {
 					log.Printf("[RUN] Processing daily aggregation for device: %s", deviceID)
-					if _, err := cronSvc.DailyAggregation(ctx, targetDay, deviceID); err != nil {
+					if _, err := cronSvc.DailyAggregation(ctx, targetDay.Time, deviceID); err != nil {
 						log.Printf("[ERROR] DailyAggregation for device %s: %v", deviceID, err)
 					} else {
 						log.Printf("[SUCCESS] DailyAggregation completed for device: %s", deviceID)

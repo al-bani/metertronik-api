@@ -72,7 +72,7 @@ func (h *ApiHandler) GetDailyRange(c *gin.Context) {
 	endDate := c.Query("end")
 	lastDate := c.Query("last")
 
-	data, err := h.apiService.DailyRange(c.Request.Context(), id, startDate, endDate, lastDate)
+	data, err := h.apiService.DailyRange(c.Request.Context(), id, startDate, endDate, lastDate, 10)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -93,5 +93,24 @@ func (h *ApiHandler) GetDailyRange(c *gin.Context) {
 		"end":       endDate,
 		"data":      data,
 		"last_date": lastDateData,
+	})
+}
+
+func (h *ApiHandler) GetMonthlyList(c *gin.Context) {
+	id := c.Param("id")
+	date := c.Query("date")
+
+	data, err := h.apiService.MonthlyList(c.Request.Context(), id, date)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "OK",
+		"id":      id,
+		"data":    data,
 	})
 }

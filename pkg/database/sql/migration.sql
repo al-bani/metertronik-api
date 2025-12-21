@@ -42,7 +42,7 @@ FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 CREATE INDEX idx_daily_2025_device ON daily_data_2025(device_id);
 CREATE INDEX idx_daily_2025_day ON daily_data_2025(day);
 
-CREATE TABLE tarifFs (
+CREATE TABLE tariffs (
     id BIGSERIAL PRIMARY KEY,
 
     type_tarrif VARCHAR(20) NOT NULL,
@@ -55,3 +55,20 @@ CREATE TABLE tarifFs (
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+CREATE TABLE IF NOT EXISTS monthly_data (
+    device_id    VARCHAR(50) NOT NULL,
+    month        DATE NOT NULL, 
+    energy       DECIMAL(10,3) NOT NULL,
+    total_cost   DECIMAL(15,2) NOT NULL,
+    created_at   TIMESTAMPTZ DEFAULT NOW(),
+
+    PRIMARY KEY (device_id, month)
+) PARTITION BY RANGE (month);
+
+CREATE TABLE monthly_data_2025
+PARTITION OF monthly_data
+FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
+
+CREATE INDEX idx_monthly_2025_device ON monthly_data_2025(device_id);
+CREATE INDEX idx_monthly_2025_month ON monthly_data_2025(month);

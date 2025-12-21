@@ -20,6 +20,7 @@ func SetupRoutes(r *gin.Engine, handler *handler.ApiHandler) {
 		api.GET("/daily/:id", handler.GetDailyList)
 		api.GET("/daily/:id/detail", handler.GetSpecificDailyActivity)
 		api.GET("/daily/:id/range", handler.GetDailyRange)
+		api.GET("/monthly/:id", handler.GetMonthlyList)
 
 		// api.GET("/daily/summary", func(ctx *gin.Context) {
 

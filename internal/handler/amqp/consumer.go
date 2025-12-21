@@ -6,6 +6,7 @@ import (
 	"log"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/service"
+	"metertronik/pkg/utils"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -175,7 +176,7 @@ func processMessages(c *Consumer, ctx context.Context, msgs <-chan amqp.Delivery
 	defer close(done)
 
 	messageCount := 0
-	lastMessageTime := time.Now()
+	lastMessageTime := utils.TimeNow()
 	ticker := time.NewTicker(c.cfg.LogInterval)
 	defer ticker.Stop()
 
@@ -185,7 +186,7 @@ func processMessages(c *Consumer, ctx context.Context, msgs <-chan amqp.Delivery
 			done <- ctx.Err()
 			return
 		case <-ticker.C:
-			elapsed := time.Since(lastMessageTime)
+			elapsed := utils.TimeSince(lastMessageTime)
 			log.Printf("Still waiting for messages... (Last message: %d, Elapsed since last: %v)", messageCount, elapsed)
 		case d, ok := <-msgs:
 			if !ok {
@@ -196,7 +197,7 @@ func processMessages(c *Consumer, ctx context.Context, msgs <-chan amqp.Delivery
 			}
 
 			messageCount++
-			lastMessageTime = time.Now()
+			lastMessageTime = utils.TimeNow()
 			log.Printf("Received message #%d", messageCount)
 			log.Printf("Message delivery tag: %d, Exchange: %s, RoutingKey: %s", d.DeliveryTag, d.Exchange, d.RoutingKey)
 

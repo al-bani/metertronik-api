@@ -26,6 +26,12 @@ type DailyActivityResponse struct {
 	Hourly *[]entity.HourlyElectricity `json:"hourly"`
 }
 
+type MonthlyResponse struct {
+	Month   *entity.MonthlyElectricity   `json:"month"`
+	Daily   *[]entity.DailyElectricity   `json:"daily"`
+	Monthly *[]entity.MonthlyElectricity `json:"monthly"`
+}
+
 func (s *ApiService) DailyActivity(ctx context.Context, deviceID string, dateStr string) (*DailyActivityResponse, error) {
 	date, err := utils.ParseDate(dateStr)
 
@@ -134,7 +140,7 @@ func (s *ApiService) DailyList(ctx context.Context, deviceID string, time string
 	return dailyElectricityList, nil
 }
 
-func (s *ApiService) DailyRange(ctx context.Context, deviceID string, startStr string, endStr string, last string) (*[]entity.DailyElectricity, error) {
+func (s *ApiService) DailyRange(ctx context.Context, deviceID string, startStr string, endStr string, last string, limit int) (*[]entity.DailyElectricity, error) {
 	start, err := utils.ParseDate(startStr)
 	if err != nil {
 		return nil, err
@@ -166,23 +172,105 @@ func (s *ApiService) DailyRange(ctx context.Context, deviceID string, startStr s
 	var dailyElectricityList *[]entity.DailyElectricity
 
 	if s.redisBatchRepo != nil {
-		dailyElectricityList, err = s.redisBatchRepo.GetDailyRangeCache(ctx, deviceID, startStr, endStr, last)
+		dailyElectricityList, err = s.redisBatchRepo.GetDailyRangeCache(ctx, deviceID, startStr, endStr, last, limit)
 		if err == nil {
 			return dailyElectricityList, nil
 		}
 	}
 
-	dailyElectricityList, err = s.postgresRepo.GetDailyRange(ctx, deviceID, start, end, lastDate)
+	dailyElectricityList, err = s.postgresRepo.GetDailyRange(ctx, deviceID, start, end, lastDate, limit)
 	if err != nil {
 		return nil, err
 	}
 
 	if s.redisBatchRepo != nil {
-		err = s.redisBatchRepo.SetDailyRangeCache(ctx, deviceID, startStr, endStr, last, dailyElectricityList, utils.Days(30))
+		err = s.redisBatchRepo.SetDailyRangeCache(ctx, deviceID, startStr, endStr, last, limit, dailyElectricityList, utils.Days(30))
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	return dailyElectricityList, nil
+}
+
+func (s *ApiService) MonthlyList(ctx context.Context, deviceID string, dateStr string) (*MonthlyResponse, error) {
+	date, err := utils.ParseDate(dateStr)
+	if err != nil {
+		return nil, err
+	}
+
+	var dailyList *[]entity.DailyElectricity
+
+	if date.IsFirstDayOfMonth() {
+
+		dailyActivity, err := s.DailyActivity(ctx, deviceID, dateStr)
+		if err != nil {
+			return nil, err
+		}
+
+		if dailyActivity.Daily != nil {
+			dailyList = &[]entity.DailyElectricity{*dailyActivity.Daily}
+		} else {
+			dailyList = &[]entity.DailyElectricity{}
+		}
+	} else {
+		startDate, endDate := date.GetMonthlyRangeDates()
+
+		startStr := startDate.Format()
+		endStr := endDate.Format()
+
+		dailyList, err = s.DailyRange(ctx, deviceID, startStr, endStr, "", 32)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	monthlyList, err := s.postgresRepo.GetMonthlyElectricity(ctx, deviceID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	currentMonth := date.StartOfMonth()
+	currentMonthUTC := currentMonth.Time.UTC()
+
+	var monthly *entity.MonthlyElectricity
+	var monthlyListFiltered *[]entity.MonthlyElectricity
+
+
+	if monthlyList != nil && len(*monthlyList) > 0 {
+		var currentMonthData *entity.MonthlyElectricity
+		var otherMonths []entity.MonthlyElectricity
+
+		for i := range *monthlyList {
+			monthData := &(*monthlyList)[i]
+			monthStart := monthData.Month.StartOfMonth()
+			monthStartUTC := monthStart.Time.UTC()
+
+			isCurrentMonth := monthStartUTC.Year() == currentMonthUTC.Year() &&
+				monthStartUTC.Month() == currentMonthUTC.Month()
+				
+			if isCurrentMonth {
+				currentMonthData = monthData
+			} else {
+				otherMonths = append(otherMonths, *monthData)
+			}
+		}
+
+		monthly = currentMonthData
+
+		if len(otherMonths) > 0 {
+			monthlyListFiltered = &otherMonths
+		} else {
+			monthlyListFiltered = &[]entity.MonthlyElectricity{}
+		}
+	} else {
+		monthlyListFiltered = &[]entity.MonthlyElectricity{}
+	}
+
+	return &MonthlyResponse{
+		Month:   monthly,
+		Daily:   dailyList,
+		Monthly: monthlyListFiltered,
+	}, nil
 }

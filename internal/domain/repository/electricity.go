@@ -29,19 +29,27 @@ type RedisBatchRepo interface {
 	GetDailyListCache(ctx context.Context, deviceID string, sortBy string, lastDate string) (*[]entity.DailyElectricity, error)
 	SetDailyListCache(ctx context.Context, deviceID string, sortBy string, lastDate string, data *[]entity.DailyElectricity, ttl time.Duration) error
 
-	GetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string) (*[]entity.DailyElectricity, error)
-	SetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string, data *[]entity.DailyElectricity, ttl time.Duration) error
+	GetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string, limit int) (*[]entity.DailyElectricity, error)
+	SetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string, limit int, data *[]entity.DailyElectricity, ttl time.Duration) error
 }
 
 type PostgresRepo interface {
 	SaveHourlyElectricity(ctx context.Context, hourlyElectricity *entity.HourlyElectricity) error
 	GetHourlyElectricity(ctx context.Context, deviceID string, hours int, date *utils.TimeData) (*[]entity.HourlyElectricity, error)
+	
 	SaveDailyElectricity(ctx context.Context, dailyElectricity *entity.DailyElectricity) error
 	GetDailyElectricity(ctx context.Context, deviceID string, date utils.TimeData) (*entity.DailyElectricity, *[]entity.HourlyElectricity, error)
+	
+	UpsertMonthlyElectricity(ctx context.Context, monthlyElectricity *entity.MonthlyElectricity) error
+	GetMonthlyElectricity(ctx context.Context, deviceID string) (*[]entity.MonthlyElectricity,error)
+	
 	GetTarrifs(ctx context.Context) (*entity.Tarrifs, error)
+	
 	GetDailyElectricityList(ctx context.Context, deviceID string, sortBy string, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error)
-	GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData, lastDate *utils.TimeData) (*[]entity.DailyElectricity, error)
+	GetDailyRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData, lastDate *utils.TimeData, limit int) (*[]entity.DailyElectricity, error)
+	
 	GetHourlyElectricityRange(ctx context.Context, deviceID string, start utils.TimeData, end utils.TimeData) (*[]entity.HourlyElectricity, error)
+	
 	UpsertHourlyElectricity(ctx context.Context, data *entity.HourlyElectricity) error
 	UpsertDailyElectricity(ctx context.Context, data *entity.DailyElectricity) error
 }
