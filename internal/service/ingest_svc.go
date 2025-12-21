@@ -58,6 +58,21 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 		log.Println("Saving data to influxDB : ", data)
 	}
 
+	// Jika previousData == nil, ini adalah data pertama, selalu cache
+	if previousData == nil {
+		log.Printf("First data for device %s, caching immediately", data.DeviceID)
+		if err := s.RedisRealtimeRepo.SetLatestElectricity(ctx, data.DeviceID, data); err != nil {
+			log.Printf("Failed saving latest cache: %v", err)
+		} else {
+			log.Println("Updated latest cache data")
+		}
+
+		if err := s.RedisRealtimeRepo.SaveElectricityHistory(ctx, data.DeviceID, data, 5*time.Minute); err != nil {
+			log.Printf("Failed saving history cache: %v", err)
+		}
+		return nil
+	}
+
 	changed, _, err := s.RedisRealtimeRepo.HasChanged(ctx, data.DeviceID, data)
 	if err != nil {
 		log.Printf("Error comparing cache: %v", err)
@@ -87,21 +102,37 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 	return nil
 }
 
+func percentageDiff(current, previous float64) float64 {
+	if previous == 0 {
+		return 0
+	}
+	return math.Abs(((current - previous) / previous) * 100)
+}
+
 func ProximityValue(previousData *entity.RealTimeElectricity, data *entity.RealTimeElectricity) bool {
+	if previousData == nil || data == nil {
+		return false
+	}
+
 	threshold := 10.0
 
-	diffPercentagePower := math.Abs(((data.Power - previousData.Power) / previousData.Power) * 100)
-	diffPercentageVoltage := math.Abs(((data.Voltage - previousData.Voltage) / previousData.Voltage) * 100)
-	diffPercentageCurrent := math.Abs(((data.Current - previousData.Current) / previousData.Current) * 100)
-	diffPercentageEnergy := math.Abs(((data.Energy - previousData.Energy) / previousData.Energy) * 100)
-	diffPercentagePowerFactor := math.Abs(((data.PowerFactor - previousData.PowerFactor) / previousData.PowerFactor) * 100)
-	diffPercentageFrequency := math.Abs(((data.Frequency - previousData.Frequency) / previousData.Frequency) * 100)
+	diffPower := percentageDiff(data.Power, previousData.Power)
+	diffVoltage := percentageDiff(data.Voltage, previousData.Voltage)
+	diffCurrent := percentageDiff(data.Current, previousData.Current)
+	diffEnergy := percentageDiff(data.Energy, previousData.Energy)
+	diffPF := percentageDiff(data.PowerFactor, previousData.PowerFactor)
+	diffFreq := percentageDiff(data.Frequency, previousData.Frequency)
 
 	if data.PowerSurge > 500.0 || data.PSPercent > 15.0 {
 		return true
 	}
 
-	if diffPercentagePower >= threshold || diffPercentageVoltage >= threshold || diffPercentageCurrent >= threshold || diffPercentageEnergy >= threshold || diffPercentagePowerFactor >= threshold || diffPercentageFrequency >= threshold {
+	if diffPower >= threshold ||
+		diffVoltage >= threshold ||
+		diffCurrent >= threshold ||
+		diffEnergy >= threshold ||
+		diffPF >= threshold ||
+		diffFreq >= threshold {
 		return true
 	}
 

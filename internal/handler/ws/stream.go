@@ -8,6 +8,7 @@ import (
 	"metertronik/pkg/utils"
 	"net/http"
 	"time"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -91,6 +92,7 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 			}
 
 			if data == nil {
+				log.Printf("No data available in cache for device %s", deviceID)
 				continue
 			}
 
@@ -123,4 +125,3 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 		}
 	}
 }
-
