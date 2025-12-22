@@ -200,7 +200,7 @@ func (r *ElectricityRepoPostgres) UpsertMonthlyElectricity(ctx context.Context, 
 func (r *ElectricityRepoPostgres) GetMonthlyElectricity(ctx context.Context, deviceID string) (*[]entity.MonthlyElectricity, error) {
 	var monthlyElectricityList []entity.MonthlyElectricity
 
-	if err := r.db.WithContext(ctx).Table("monthly_data").Where("device_id = ?", deviceID).Find(&monthlyElectricityList).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("monthly_data").Where("device_id = ?", deviceID).Order("month desc").Find(&monthlyElectricityList).Error; err != nil {
 		return nil, fmt.Errorf("failed to get monthly electricity data: %w", err)
 	}
 
