@@ -20,7 +20,7 @@ func main() {
 	influxRepo, cleanupInflux := database.SetupInfluxDB(cfg)
 	defer cleanupInflux()
 
-	postgresRepo, cleanupPostgres := database.SetupPostgres(cfg)
+	postgresRepo, _, cleanupPostgres := database.SetupPostgres(cfg)
 	defer cleanupPostgres()
 
 	cronSvc := service.NewCronService(influxRepo, postgresRepo)

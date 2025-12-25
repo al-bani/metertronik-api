@@ -21,6 +21,7 @@ func NewApiService(postgresRepo repository.PostgresRepo, redisBatchRepo reposito
 	}
 }
 
+
 type DailyActivityResponse struct {
 	Daily  *entity.DailyElectricity    `json:"daily"`
 	Hourly *[]entity.HourlyElectricity `json:"hourly"`
@@ -272,5 +273,48 @@ func (s *ApiService) MonthlyList(ctx context.Context, deviceID string, dateStr s
 		Month:   monthly,
 		Daily:   dailyList,
 		Monthly: monthlyListFiltered,
+	}, nil
+}
+
+func (s *ApiService) DayNowActivity(ctx context.Context, deviceID string) (*DailyActivityResponse, error) {
+	endTime := utils.TimeNowHourly()
+	startTime := endTime.StartOfDay()
+
+	hourlyDataList, err := s.postgresRepo.GetHourlyElectricityRange(ctx, deviceID, startTime, endTime)
+
+	count := len(*hourlyDataList)
+
+	var totalVoltage, totalCurrent, totalPower, energy float64
+	minPower := (*hourlyDataList)[0].MinPower
+	maxPower := (*hourlyDataList)[0].MaxPower
+
+	for _, d := range *hourlyDataList {
+		totalVoltage += d.AvgVoltage
+		totalCurrent += d.AvgCurrent
+		totalPower += d.AvgPower
+		energy += d.Energy
+	}
+
+	tarrifs, err := s.postgresRepo.GetTarrifs(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	daily := entity.DailyElectricity{
+		DeviceID:   deviceID,
+		Energy:     energy,
+		TotalCost:  (energy * tarrifs.PricePerKwh) * 1.10,
+		AvgVoltage: totalVoltage / float64(count),
+		AvgCurrent: totalCurrent / float64(count),
+		AvgPower:   totalPower / float64(count),
+		MinPower:   minPower,
+		MaxPower:   maxPower,
+		Day:        startTime,
+		CreatedAt:  utils.TimeNow(),
+	}
+
+	return &DailyActivityResponse{
+		Daily:  &daily,
+		Hourly: hourlyDataList,
 	}, nil
 }

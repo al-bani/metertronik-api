@@ -13,6 +13,18 @@ import "metertronik/pkg/utils"
 //  UpdatedAt utils.TimeData  `json:"updated_at" gorm:"autoUpdateTime"`
 // }
 
+type User struct {
+	ID        int64      `json:"id" gorm:"primaryKey"`
+	Email     string     `json:"email" gorm:"uniqueIndex;not null"`
+	Username  string     `json:"username" gorm:"not null"`
+	Password  string     `json:"-" gorm:"not null"`
+	Role      string     `json:"role" gorm:"default:user"`
+	Status    string     `json:"status" gorm:"default:active"`
+	Verified  bool       `json:"verified" gorm:"default:false"`
+	CreatedAt utils.TimeData  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt utils.TimeData  `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
 type Device struct {
 	ID              int64          `json:"id" gorm:"primaryKey"`
 	DeviceName      string         `json:"device_name" gorm:"not null"`

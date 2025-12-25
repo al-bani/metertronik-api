@@ -1,7 +1,7 @@
 package api
 
 import (
-	"metertronik/internal/service"
+	"metertronik/internal/service/http"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -21,7 +21,14 @@ func (h *ApiHandler) GetSpecificDailyActivity(c *gin.Context) {
 	deviceID := c.Param("id")
 	date := c.Query("date")
 
-	data, err := h.apiService.DailyActivity(c.Request.Context(), deviceID, date)
+	var data *service.DailyActivityResponse
+	var err error
+
+	if date == "" {
+		data, err = h.apiService.DayNowActivity(c.Request.Context(), deviceID)
+	} else {
+		data, err = h.apiService.DailyActivity(c.Request.Context(), deviceID, date)
+	}
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{

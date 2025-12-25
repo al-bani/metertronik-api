@@ -6,9 +6,10 @@ import (
 	"metertronik/internal/middleware"
 	httpRouter "metertronik/internal/router/http"
 	wsRouter "metertronik/internal/router/websocket"
-	"metertronik/internal/service"
+	service "metertronik/internal/service/http"
 	"metertronik/pkg/config"
 	"metertronik/pkg/database"
+	redisDB "metertronik/pkg/database/redis"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,24 +21,30 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	postgresRepo, cleanupPostgres := database.SetupPostgres(cfg)
+	postgresRepo, usersRepo, cleanupPostgres := database.SetupPostgres(cfg)
 	defer cleanupPostgres()
 
-	redisBatchRepo, cleanupRedisBatch := database.SetupRedisRealtimeBatch(cfg)
+	redisBatchRepo, cleanupRedisBatch := redisDB.SetupRedisRealtimeBatch(cfg)
 	defer cleanupRedisBatch()
 
-	redisRealtimeRepo, cleanupRedisRealtime := database.SetupRedisRealtime(cfg)
+	redisRealtimeRepo, cleanupRedisRealtime := redisDB.SetupRedisRealtime(cfg)
 	defer cleanupRedisRealtime()
+
+	redisAuthRepo, cleanupRedisAuth := redisDB.SetupRedisAuth(cfg)
+	defer cleanupRedisAuth()
 
 	api := service.NewApiService(postgresRepo, redisBatchRepo)
 	apiHandler := handler.NewApiHandler(api)
+
+	authService := service.NewAuthService(usersRepo, redisAuthRepo)
+	authHandler := handler.NewAuthHandler(authService)
 
 	gin.SetMode(cfg.GinMode)
 	router := gin.Default()
 
 	router.Use(middleware.CORSMiddleware(cfg))
 
-	httpRouter.SetupRoutes(router, apiHandler)
+	httpRouter.SetupRoutes(router, apiHandler, authHandler)
 
 	wsRouter.WebSocketRoutes(router, redisRealtimeRepo)
 

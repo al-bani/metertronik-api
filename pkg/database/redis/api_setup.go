@@ -1,11 +1,11 @@
-package database
+package redis
 
 import (
 	"context"
 	"log"
 
 	"metertronik/internal/domain/repository"
-	repoRedis "metertronik/internal/repository/redis"
+	repoRedis "metertronik/internal/repository/redis/api"
 	"metertronik/pkg/config"
 
 	"github.com/redis/go-redis/v9"

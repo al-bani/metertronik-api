@@ -8,6 +8,7 @@ import (
 	"metertronik/internal/service"
 	"metertronik/pkg/config"
 	"metertronik/pkg/database"
+	"metertronik/pkg/database/redis"
 )
 
 func main() {
@@ -19,7 +20,7 @@ func main() {
 	influxRepo, cleanupInflux := database.SetupInfluxDB(cfg)
 	defer cleanupInflux()
 
-	RedisRealtimeRepo, cleanupRedis := database.SetupRedisRealtime(cfg)
+	RedisRealtimeRepo, cleanupRedis := redis.SetupRedisRealtime(cfg)
 	defer cleanupRedis()
 
 	svc := service.NewIngestService(influxRepo, RedisRealtimeRepo)

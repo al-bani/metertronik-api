@@ -14,7 +14,7 @@ import (
 
 var DB *gorm.DB
 
-func SetupPostgres(cfg *config.Config) (repository.PostgresRepo, func()) {
+func SetupPostgres(cfg *config.Config) (repository.PostgresRepo, repository.UsersRepoPostgres, func()) {
 
 	dsn := fmt.Sprintf(
 		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
@@ -28,7 +28,8 @@ func SetupPostgres(cfg *config.Config) (repository.PostgresRepo, func()) {
 
 	DB = db
 
-	repo := repoPostgres.NewElectricityRepoPostgres(db)
+	electricityRepo := repoPostgres.NewElectricityRepoPostgres(db)
+	usersRepo := repoPostgres.NewUsersRepoPostgres(db)
 
 	cleanup := func() {
 		sqlDB, err := db.DB()
@@ -41,5 +42,5 @@ func SetupPostgres(cfg *config.Config) (repository.PostgresRepo, func()) {
 		}
 	}
 
-	return repo, cleanup
+	return electricityRepo, usersRepo, cleanup
 }
