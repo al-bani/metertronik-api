@@ -4,6 +4,7 @@ import (
 	"strings"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"log"
 )
 
 var jwtSecret = []byte("metertronik")
@@ -16,6 +17,7 @@ func JWTMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+		log.Println("auth", auth)
 
 		tokenStr := strings.TrimPrefix(auth, "Bearer ")
 
@@ -28,6 +30,9 @@ func JWTMiddleware() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
+
+
+		log.Println("success parse token", token)
 
 		claims := token.Claims.(jwt.MapClaims)
 		c.Set("user_id", int(claims["uid"].(float64)))

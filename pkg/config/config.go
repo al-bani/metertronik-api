@@ -44,6 +44,10 @@ type Config struct {
 	CronDailyInterval  time.Duration
 
 	ConsumerLogInterval time.Duration
+
+	SendgridAPIKey string
+	SendgridFromEmail string
+	SendgridFromName string
 }
 
 func Load() (*Config, error) {
@@ -91,6 +95,10 @@ func Load() (*Config, error) {
 		CronDailyInterval:  time.Duration(cronDailyIntervalHours) * time.Hour,
 
 		ConsumerLogInterval: time.Duration(consumerLogIntervalSeconds) * time.Second,
+
+		SendgridAPIKey: getEnv("SENDGRID_API_KEY", ""),
+		SendgridFromEmail: getEnv("SENDGRID_FROM_EMAIL", ""),
+		SendgridFromName: getEnv("SENDGRID_FROM_NAME", ""),
 	}, nil
 }
 

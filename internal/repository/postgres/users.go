@@ -31,5 +31,5 @@ func (r *UsersRepoPostgres) GetUser(ctx context.Context, email string, username 
 }
 
 func (r *UsersRepoPostgres) UpdateUser(ctx context.Context, user *entity.User) error {
-	return r.db.WithContext(ctx).Table("users").Where("id = ?", user.ID).Updates(user).Error
+	return r.db.WithContext(ctx).Table("users").Where("email = ?", user.Email).Updates(user).Error
 }
