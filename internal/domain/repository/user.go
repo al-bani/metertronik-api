@@ -12,9 +12,9 @@ type UsersRepoPostgres interface {
 }
 
 type UsersRepoRedis interface {
-	ResetExpired(ctx context.Context, identifier int64, token string) error
+	ResetExpiredToken(ctx context.Context, identifier int64, token string) error
 	SetVerificationCodeOtp(ctx context.Context, identifier string, hashCode string) error
 	GetVerificationCodeOtp(ctx context.Context, identifier string) (string, error)
 	SetToken(ctx context.Context, identifier int64, token string) error
-	DeleteToken(ctx context.Context, identifier int64) error
+	DeleteToken(ctx context.Context, token string) error
 }

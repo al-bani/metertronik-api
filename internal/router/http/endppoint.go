@@ -9,23 +9,26 @@ import (
 )
 
 func SetupRoutes(r *gin.Engine, apiHandler *handler.ApiHandler, authHandler *handler.AuthHandler) {
-	api := r.Group("/v1/api")
+	rest := r.Group("/v1")
 
-	auth := api.Group("/auth")
+	auth := rest.Group("/api/auth")
 	{
 		auth.POST("/login", authHandler.Login)
 		auth.POST("/register", authHandler.Register)
 		auth.POST("/refresh", authHandler.Refresh)
-		auth.GET("/logout/:id", authHandler.Logout)
+
 		auth.POST("/reset-password", authHandler.ResetPassword)
 		auth.POST("/verify-otp", authHandler.VerifyOtp)
 		auth.POST("/resend-otp", authHandler.ResendOtp)
 		auth.POST("/request-reset-password", authHandler.RequestResetPassword)
+		auth.POST("/change-password", authHandler.ResetPassword)
+		auth.POST("/check-id", authHandler.CheckId)
 	}
 
-
+	api := rest.Group("/api")
 	api.Use(middleware.JWTMiddleware())
 	{
+		api.POST("/user/logout", authHandler.Logout)
 		api.GET("/", func(ctx *gin.Context) {
 			ctx.JSON(http.StatusOK, gin.H{
 				"message": "OK",

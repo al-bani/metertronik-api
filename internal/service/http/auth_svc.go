@@ -5,13 +5,15 @@ import (
 	"errors"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
+	"metertronik/pkg/validator"
+
+	"log"
+	"metertronik/internal/handler/verification"
+	"metertronik/pkg/utils"
+	"metertronik/pkg/utils/token"
 
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
-	"metertronik/pkg/utils/token"
-	"metertronik/pkg/utils"
-	"metertronik/internal/handler/verification"
-	"log"
 )
 
 type AuthService struct {
@@ -28,10 +30,9 @@ func NewAuthService(postgresRepo repository.UsersRepoPostgres, redisAuthRepo rep
 
 type TokenResponse struct {
 	User         *entity.User `json:"user"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
+	AccessToken  string       `json:"access_token"`
+	RefreshToken string       `json:"refresh_token"`
 }
-
 
 func (s *AuthService) RegisterController(ctx context.Context, user *entity.User) error {
 
@@ -93,16 +94,20 @@ func (s *AuthService) LoginController(ctx context.Context, user *entity.User) (*
 	if existingUser == nil {
 		return nil, errors.New("user not found, Check your email, username or password")
 	}
-	
+
 	err = bcrypt.CompareHashAndPassword([]byte(existingUser.Password), []byte(user.Password))
 	if err != nil {
 		return nil, errors.New("user not found, Check your email, username or password")
 	}
 
 	refreshToken := token.GenerateRefreshToken()
+	hashedRefreshToken := utils.Hashing(refreshToken)
 	accessToken := token.GenerateAccessToken(existingUser.ID)
+	log.Println("refresh token, LoginController : ", refreshToken)
 
-	s.redisAuthRepo.SetToken(ctx, existingUser.ID, refreshToken)
+	log.Println("hashedRefreshToken, LoginController : ", hashedRefreshToken)
+
+	s.redisAuthRepo.SetToken(ctx, existingUser.ID, hashedRefreshToken)
 
 	return &TokenResponse{
 		User:         existingUser,
@@ -114,13 +119,18 @@ func (s *AuthService) LoginController(ctx context.Context, user *entity.User) (*
 
 func (s *AuthService) RefreshController(ctx context.Context, userId int64, refreshToken string) (*TokenResponse, error) {
 	newAccessToken := token.GenerateAccessToken(userId)
-	log.Println("newAccessToken", newAccessToken)
+	log.Println("refresh token, RefreshController : ", refreshToken)
 
-	err := s.redisAuthRepo.ResetExpired(ctx, userId, refreshToken)
+	hashedRefreshToken := utils.Hashing(refreshToken)
+
+	log.Println("hashedRefreshToken, RefreshController : ", hashedRefreshToken)
+
+	err := s.redisAuthRepo.ResetExpiredToken(ctx, userId, hashedRefreshToken)
+
 	if err != nil {
 		return nil, errors.New("failed to reset expired token, " + err.Error())
 	}
-	
+
 	return &TokenResponse{
 		User:         &entity.User{ID: userId},
 		AccessToken:  newAccessToken,
@@ -128,10 +138,12 @@ func (s *AuthService) RefreshController(ctx context.Context, userId int64, refre
 	}, nil
 }
 
-func (s *AuthService) LogoutController(ctx context.Context, userId int64) error {
-	return s.redisAuthRepo.DeleteToken(ctx, userId)
-}
+func (s *AuthService) LogoutController(ctx context.Context, refreshToken string) error {
+	log.Println("refresh token, LogoutController : ", refreshToken)
+	hashedRefreshToken := utils.Hashing(refreshToken)
 
+	return s.redisAuthRepo.DeleteToken(ctx, hashedRefreshToken)
+}
 
 func (s *AuthService) RequestResetPasswordController(ctx context.Context, email string) error {
 	existingUser, err := s.postgresRepo.GetUser(ctx, email, "")
@@ -189,7 +201,7 @@ func (s *AuthService) ResetPasswordController(ctx context.Context, email string,
 	}
 
 	existingUser.Password = string(hashedPassword)
-	
+
 	err = s.postgresRepo.UpdateUser(ctx, existingUser)
 	if err != nil {
 		return errors.New("failed to update user, " + err.Error())
@@ -251,4 +263,27 @@ func (s *AuthService) ResendOtpController(ctx context.Context, email string) err
 	}
 
 	return nil
+}
+
+func (s *AuthService) CheckIdController(ctx context.Context, id string) (bool, error) {
+	if err := validator.ValidateControllerID(id); err != nil {
+		return false, err
+	}
+
+	existingUser, err := s.postgresRepo.GetUser(ctx, "", id)
+	if err != nil {
+		// ID belum dipakai (record tidak ada) => available
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return true, nil
+		}
+		return false, errors.New("failed to get user, " + err.Error())
+	}
+
+	// Berjaga-jaga: kalau repo suatu saat mengembalikan (nil, nil)
+	if existingUser == nil {
+		return true, nil
+	}
+
+	// ID sudah dipakai
+	return false, nil
 }

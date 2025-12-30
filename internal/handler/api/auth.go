@@ -1,10 +1,10 @@
 package api
 
 import (
+	"log"
 	"metertronik/internal/domain/entity"
 	service "metertronik/internal/service/http"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -79,7 +79,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			"email":    user.Email,
 			"username": user.Username,
 			"role":     user.Role,
-			"status":   user.Status,	
+			"status":   user.Status,
 		},
 	})
 }
@@ -153,29 +153,35 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	userId := c.Param("id")
+	log.Println("Logout Handler")
+	var reqLogout struct {
+		RefreshToken string `json:"refresh_token" binding:"required"`
+	}
 
-	userIdInt64, err := strconv.ParseInt(userId, 10, 64)
-
-	if err != nil {
+	if err := c.ShouldBindJSON(&reqLogout); err != nil {
+		log.Println("Logout Handler 1")
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid user ID",
-			"message": "User ID must be a valid number",
+			"status_logout": false,
+			"error":         "Invalid request",
+			"message":       err.Error(),
 		})
 		return
 	}
+	log.Println("Logout 1")
+	err := h.authService.LogoutController(c.Request.Context(), reqLogout.RefreshToken)
 
-	err = h.authService.LogoutController(c.Request.Context(), userIdInt64)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Logout failed",
-			"message": err.Error(),
+			"status_logout": false,
+			"error":         "Logout failed",
+			"message":       err.Error(),
 		})
 		return
 	}
-
+	log.Println("Logout 2")
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Logout successful",
+		"status_logout": true,
+		"message":       "Logout successful",
 	})
 }
 
@@ -201,8 +207,8 @@ func (h *AuthHandler) RequestResetPassword(c *gin.Context) {
 
 func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var reqResetPassword struct {
-		Email string `json:"email" binding:"required,email"`
-		Otp   string `json:"otp" binding:"required"`
+		Email    string `json:"email" binding:"required,email"`
+		Otp      string `json:"otp" binding:"required"`
 		Password string `json:"password" binding:"required,min=6"`
 	}
 	c.ShouldBindJSON(&reqResetPassword)
@@ -226,19 +232,29 @@ func (h *AuthHandler) VerifyOtp(c *gin.Context) {
 		Email string `json:"email" binding:"required,email"`
 		Otp   string `json:"otp" binding:"required"`
 	}
-	c.ShouldBindJSON(&reqVerifyOtp)
+	if err := c.ShouldBindJSON(&reqVerifyOtp); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"status_verify": false,
+			"error":         "Invalid request",
+			"message":       err.Error(),
+		})
+		return
+	}
 
 	err := h.authService.VerifyOtpController(c.Request.Context(), reqVerifyOtp.Email, reqVerifyOtp.Otp)
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Verify OTP failed",
-			"message": err.Error(),
+			"status_verify": false,
+			"error":         "Verify OTP failed",
+			"message":       err.Error(),
 		})
+		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Verify OTP successful",
+		"status_verify": true,
+		"message":       "Verify OTP successful",
 	})
 }
 
@@ -251,13 +267,52 @@ func (h *AuthHandler) ResendOtp(c *gin.Context) {
 	err := h.authService.ResendOtpController(c.Request.Context(), reqResendOtp.Email)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Resend OTP failed",
+			"status_resend": false,
+			"error":         "Resend OTP failed",
+			"message":       err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status_resend": true,
+		"message":       "Resend OTP successful",
+	})
+}
+
+func (h *AuthHandler) CheckId(c *gin.Context) {
+	log.Println("CheckId Handler")
+	var reqCheckId struct {
+		Id string `json:"user_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&reqCheckId); err != nil {
+		log.Println("CheckId Handler 1")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid request",
+			"message": err.Error(),
+		})
+		return
+	}
+	log.Println("CheckId Handler 2")
+	avail, err := h.authService.CheckIdController(c.Request.Context(), reqCheckId.Id)
+	if err != nil {
+		// Validator di service mengembalikan error dengan prefix "invalid id:"
+		if strings.HasPrefix(err.Error(), "invalid id:") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":   "Invalid request",
+				"message": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Check ID failed",
 			"message": err.Error(),
 		})
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Resend OTP successful",
+		"available": avail,
+		"message":   "Check ID successful",
 	})
 }
