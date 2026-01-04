@@ -7,20 +7,22 @@ import (
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
 	"metertronik/pkg/utils"
+	"metertronik/pkg/utils/token"
 )
 
 type ApiService struct {
 	postgresRepo   repository.PostgresRepo
 	redisBatchRepo repository.RedisBatchRepo
+	redisDeviceRepo repository.RedisDeviceRepo
 }
 
-func NewApiService(postgresRepo repository.PostgresRepo, redisBatchRepo repository.RedisBatchRepo) *ApiService {
+func NewApiService(postgresRepo repository.PostgresRepo, redisBatchRepo repository.RedisBatchRepo, redisDeviceRepo repository.RedisDeviceRepo) *ApiService {
 	return &ApiService{
 		postgresRepo:   postgresRepo,
 		redisBatchRepo: redisBatchRepo,
+		redisDeviceRepo: redisDeviceRepo,
 	}
 }
-
 
 type DailyActivityResponse struct {
 	Daily  *entity.DailyElectricity    `json:"daily"`
@@ -317,4 +319,101 @@ func (s *ApiService) DayNowActivity(ctx context.Context, deviceID string) (*Dail
 		Daily:  &daily,
 		Hourly: hourlyDataList,
 	}, nil
+}
+
+func (s *ApiService) UserPairing(ctx context.Context, deviceID string, userId int64) (string, error) {
+	device, err := s.postgresRepo.GetDevice(ctx, deviceID)
+
+	if err != nil {
+		return "", err
+	}
+
+	if device == nil {
+		return "", errors.New("device not found")
+	}
+
+	log.Println("device, UserPairing : ", device.DeviceID)
+
+	paired, err := s.postgresRepo.OwnershipDeviceCheck(ctx, device.ID)
+	if err != nil {
+		return "", err
+	}
+
+	log.Println("UserPairing : ", paired)
+
+	if paired {
+		return "", errors.New("this device is already paired")
+	}
+
+	pairToken := token.GeneratePairToken()
+	pairTokenHash := utils.Hashing(pairToken)
+
+	
+	err = s.redisDeviceRepo.SetDevicePairing(ctx, pairTokenHash, deviceID, userId)
+	if err != nil {
+		return "", err
+	}
+
+	log.Println("return PairToken : ", pairToken)
+
+	return pairToken, nil
+}
+
+func (s *ApiService) DevicePairing(ctx context.Context, deviceID string, deviceSecret string, pairToken string) error {
+	existingDevice, err := s.postgresRepo.GetDevice(ctx, deviceID)
+
+	if err != nil {
+		return errors.New("failed to get device, " + err.Error())
+	}
+
+	log.Println("Geting device id : ", existingDevice.DeviceID)
+	log.Println("Geting device secret : ", existingDevice.DeviceSecret)
+	log.Println("Geting token pairing : ", pairToken)
+
+	if existingDevice == nil {
+		log.Println("Device not found")
+		return errors.New("device not found")
+	}
+
+	log.Printf("%s != %s", existingDevice.DeviceSecret, deviceSecret)
+
+
+
+	if existingDevice.DeviceSecret != deviceSecret {
+		log.Println("Device secret is in correct")
+		return errors.New("device secret is incorrect")
+	}
+
+	pairTokenHash := utils.Hashing(pairToken)
+
+	log.Println("GetDevicePairing, token hash pair : ", pairTokenHash)
+
+	userId, err := s.redisDeviceRepo.GetDevicePairing(ctx, pairTokenHash, deviceID)
+	
+	if err != nil {
+		return errors.New("failed to get device pairing, " + err.Error())
+	}
+
+	log.Println("GetDevicePairing, user id : ", userId)
+
+	existingDevice.Paired = true
+
+	err = s.postgresRepo.UpdateDevice(ctx, existingDevice, userId)
+
+	log.Println("UpdateDevice : ", existingDevice.DeviceID, userId)
+
+	if err != nil {
+		return errors.New("failed to update device, " + err.Error())
+	}
+
+	return nil
+}
+
+func (s *ApiService) PairingStatus(ctx context.Context, deviceID string) (bool, error) {
+	device, err := s.postgresRepo.GetDevice(ctx, deviceID)
+	if err != nil {
+		return false, err
+	}
+
+	return device.Paired, nil
 }

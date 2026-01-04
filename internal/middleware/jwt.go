@@ -4,18 +4,15 @@ import (
 	"strings"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"log"
 )
 
 var jwtSecret = []byte("metertronik")
 
 func JWTMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		log.Println("JWTMiddleware")
 		auth := c.GetHeader("Authorization")
-		
+
 		if !strings.HasPrefix(auth, "Bearer ") {
-			log.Println("Token Not Valid: missing token")
 			c.JSON(401, gin.H{"error": "missing token"})
 			c.Abort()
 			return
@@ -28,18 +25,26 @@ func JWTMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil || !token.Valid {
-			log.Println("Token Not Valid: ")
-			c.JSON(401, gin.H{"error": "token expired"})
+			c.JSON(401, gin.H{"error": "invalid token"})
 			c.Abort()
 			return
 		}
 
-		log.Println("Token Valid? : ", token.Valid)
+		claims, ok := token.Claims.(jwt.MapClaims)
+		if !ok {
+			c.JSON(401, gin.H{"error": "invalid claims"})
+			c.Abort()
+			return
+		}
 
-		claims := token.Claims.(jwt.MapClaims)
-		c.Set("user_id", int(claims["uid"].(float64)))
+		uidFloat, ok := claims["uid"].(float64)
+		if !ok {
+			c.JSON(401, gin.H{"error": "uid not found"})
+			c.Abort()
+			return
+		}
 
-		log.Println("passing middleware")
+		c.Set("user_id", int64(uidFloat))
 
 		c.Next()
 	}

@@ -48,6 +48,8 @@ type Config struct {
 	SendgridAPIKey string
 	SendgridFromEmail string
 	SendgridFromName string
+
+	SECRETKEY string
 }
 
 func Load() (*Config, error) {
@@ -99,6 +101,8 @@ func Load() (*Config, error) {
 		SendgridAPIKey: getEnv("SENDGRID_API_KEY", ""),
 		SendgridFromEmail: getEnv("SENDGRID_FROM_EMAIL", ""),
 		SendgridFromName: getEnv("SENDGRID_FROM_NAME", ""),
+
+		SECRETKEY: getEnv("SECRET_KEY_SERVER", ""),
 	}, nil
 }
 

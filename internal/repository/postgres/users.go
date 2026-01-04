@@ -4,7 +4,9 @@ import (
 	"context"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
+	"errors"
 
+	"fmt"
 	"gorm.io/gorm"
 )
 
@@ -32,4 +34,23 @@ func (r *UsersRepoPostgres) GetUser(ctx context.Context, email string, username 
 
 func (r *UsersRepoPostgres) UpdateUser(ctx context.Context, user *entity.User) error {
 	return r.db.WithContext(ctx).Table("users").Where("email = ?", user.Email).Updates(user).Error
+}
+
+func (r *UsersRepoPostgres) CheckDeviceUser(ctx context.Context, userId int64) (bool, error) {
+	var deviceUser entity.DeviceUser
+
+	result := r.db.WithContext(ctx).
+		Table("device_users").
+		Where("user_id = ?", userId).
+		First(&deviceUser)
+
+	if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+		return false, nil
+	}
+
+	if result.Error != nil {
+		return false, fmt.Errorf("failed to check device user: %w", result.Error)
+	}
+
+	return true, nil
 }

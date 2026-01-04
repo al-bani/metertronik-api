@@ -33,6 +33,11 @@ type RedisBatchRepo interface {
 	SetDailyRangeCache(ctx context.Context, deviceID string, start string, end string, lastDate string, limit int, data *[]entity.DailyElectricity, ttl time.Duration) error
 }
 
+type RedisDeviceRepo interface {
+	GetDevicePairing(ctx context.Context, pairing string, deviceID string) (int64, error)
+	SetDevicePairing(ctx context.Context, pairing string, deviceID string, userId int64) error
+}
+
 type PostgresRepo interface {
 	SaveHourlyElectricity(ctx context.Context, hourlyElectricity *entity.HourlyElectricity) error
 	GetHourlyElectricity(ctx context.Context, deviceID string, hours int, date *utils.TimeData) (*[]entity.HourlyElectricity, error)
@@ -52,4 +57,8 @@ type PostgresRepo interface {
 	
 	UpsertHourlyElectricity(ctx context.Context, data *entity.HourlyElectricity) error
 	UpsertDailyElectricity(ctx context.Context, data *entity.DailyElectricity) error
+
+	GetDevice(ctx context.Context, deviceID string) (*entity.Device, error)
+	OwnershipDeviceCheck(ctx context.Context, id int64) (bool, error)
+	UpdateDevice(ctx context.Context, device *entity.Device, userId int64) error
 }

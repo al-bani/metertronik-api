@@ -316,3 +316,4 @@ func (h *AuthHandler) CheckId(c *gin.Context) {
 		"message":   "Check ID successful",
 	})
 }
+

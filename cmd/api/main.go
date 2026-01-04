@@ -32,8 +32,10 @@ func main() {
 
 	redisAuthRepo, cleanupRedisAuth := redisDB.SetupRedisAuth(cfg)
 	defer cleanupRedisAuth()
+	redisDeviceRepo, cleanupRedisDevice := redisDB.SetupRedisDevice(cfg)
+	defer cleanupRedisDevice()
 
-	api := service.NewApiService(postgresRepo, redisBatchRepo)
+	api := service.NewApiService(postgresRepo, redisBatchRepo, redisDeviceRepo)
 	apiHandler := handler.NewApiHandler(api)
 
 	authService := service.NewAuthService(usersRepo, redisAuthRepo)

@@ -121,3 +121,69 @@ func (h *ApiHandler) GetMonthlyList(c *gin.Context) {
 		"data":    data,
 	})
 }
+
+func (h *ApiHandler) UserPairing(c *gin.Context) {
+	var reqUserPairing struct {
+		DeviceId string `json:"device_id" binding:"required"`
+	}
+	c.ShouldBindJSON(&reqUserPairing)
+
+	userId := c.GetInt64("user_id")
+
+	pairing, err := h.apiService.UserPairing(c.Request.Context(), reqUserPairing.DeviceId, userId)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"message": "Failed to pair user",
+
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "OK",
+		"pairing_token": pairing,
+	})
+}
+
+func (h *ApiHandler) DevicePairing(c *gin.Context) {
+	var reqDevicePairing struct {
+		DeviceId string `json:"device_id" binding:"required"`
+		DeviceSecret string `json:"device_secret" binding:"required"`
+		PairToken string `json:"pair_token" binding:"required"`
+	}
+	c.ShouldBindJSON(&reqDevicePairing)
+
+	err := h.apiService.DevicePairing(c.Request.Context(), reqDevicePairing.DeviceId, reqDevicePairing.DeviceSecret, reqDevicePairing.PairToken)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"message": "Failed to pair device",
+			"is_paired": false,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "OK",
+		"is_paired": true,
+	})
+}
+
+func (h *ApiHandler) PairingStatus(c *gin.Context) {
+	deviceId := c.Param("id")
+
+	pairing, err := h.apiService.PairingStatus(c.Request.Context(), deviceId)
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+			"is_paired": pairing,
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"is_paired": pairing,
+	})
+}

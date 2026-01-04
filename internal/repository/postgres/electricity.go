@@ -206,3 +206,39 @@ func (r *ElectricityRepoPostgres) GetMonthlyElectricity(ctx context.Context, dev
 
 	return &monthlyElectricityList, nil
 }
+
+func (r *ElectricityRepoPostgres) GetDevice(ctx context.Context, deviceID string) (*entity.Device, error) {
+	var device entity.Device
+
+	if err := r.db.WithContext(ctx).Table("devices").Where("device_id = ?", deviceID).First(&device).Error; err != nil {
+		return nil, fmt.Errorf("failed to get device: %w", err)
+	}
+
+	return &device, nil
+}
+
+func (r *ElectricityRepoPostgres) OwnershipDeviceCheck(ctx context.Context, id int64) (bool, error) {
+	var Device entity.Device
+
+	if err := r.db.WithContext(ctx).Table("devices").Where("id = ?", id).First(&Device).Error; err != nil {
+		return false, fmt.Errorf("failed to get device: %w", err)
+	}
+
+	return Device.Paired, nil
+}
+
+func (r *ElectricityRepoPostgres) UpdateDevice(ctx context.Context, device *entity.Device, userId int64) error {
+	if err := r.db.WithContext(ctx).Table("devices").Where("id = ?", device.ID).Updates(device).Error; err != nil {
+		return fmt.Errorf("failed to update device: %w", err)
+	}
+
+	if err := r.db.WithContext(ctx).Table("device_users").Create(&entity.DeviceUser{
+		DeviceID: device.ID,
+		UserID: userId,
+		Role: "owner",
+	}).Error; err != nil {
+		return fmt.Errorf("failed to create device user: %w", err)
+	}
+
+	return nil
+}

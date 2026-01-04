@@ -23,11 +23,14 @@ func SetupRoutes(r *gin.Engine, apiHandler *handler.ApiHandler, authHandler *han
 		auth.POST("/request-reset-password", authHandler.RequestResetPassword)
 		auth.POST("/change-password", authHandler.ResetPassword)
 		auth.POST("/check-id", authHandler.CheckId)
+		auth.POST("/device/pairing", apiHandler.DevicePairing)
 	}
 
 	api := rest.Group("/api")
 	api.Use(middleware.JWTMiddleware())
 	{
+		api.GET("/status/:id/pairing", apiHandler.PairingStatus)
+		api.POST("/user/pairing", apiHandler.UserPairing)
 		api.POST("/user/logout", authHandler.Logout)
 		api.GET("/", func(ctx *gin.Context) {
 			ctx.JSON(http.StatusOK, gin.H{

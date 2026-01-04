@@ -72,3 +72,41 @@ FOR VALUES FROM ('2025-01-01') TO ('2026-01-01');
 
 CREATE INDEX idx_monthly_2025_device ON monthly_data_2025(device_id);
 CREATE INDEX idx_monthly_2025_month ON monthly_data_2025(month);
+
+CREATE TABLE IF NOT EXISTS users_information (
+    user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    first_name VARCHAR(100),
+    last_name VARCHAR(100),
+    birth DATE,
+    birth_place VARCHAR(100),
+    phone VARCHAR(30),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS devices (
+  id BIGSERIAL PRIMARY KEY,
+
+  device_id VARCHAR(64) UNIQUE NOT NULL,
+  device_name VARCHAR(100),
+
+  device_secret TEXT NOT NULL,
+
+  paired BOOLEAN DEFAULT FALSE,
+  paired_at TIMESTAMPTZ,
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_seen TIMESTAMPTZ
+);
+
+CREATE TABLE IF NOT EXISTS device_users (
+  id BIGSERIAL PRIMARY KEY,
+
+  device_id BIGINT REFERENCES devices(id) ON DELETE CASCADE,
+  user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+
+  role VARCHAR(20) DEFAULT 'owner',
+
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+
+  UNIQUE (device_id, user_id)
+);

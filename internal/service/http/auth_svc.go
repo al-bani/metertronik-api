@@ -32,6 +32,7 @@ type TokenResponse struct {
 	User         *entity.User `json:"user"`
 	AccessToken  string       `json:"access_token"`
 	RefreshToken string       `json:"refresh_token"`
+	IsPaired     bool         `json:"is_paired"`
 }
 
 func (s *AuthService) RegisterController(ctx context.Context, user *entity.User) error {
@@ -103,9 +104,12 @@ func (s *AuthService) LoginController(ctx context.Context, user *entity.User) (*
 	refreshToken := token.GenerateRefreshToken()
 	hashedRefreshToken := utils.Hashing(refreshToken)
 	accessToken := token.GenerateAccessToken(existingUser.ID)
-	log.Println("refresh token, LoginController : ", refreshToken)
 
-	log.Println("hashedRefreshToken, LoginController : ", hashedRefreshToken)
+	paired, err := s.postgresRepo.CheckDeviceUser(ctx, existingUser.ID)
+	if err != nil {
+		return nil, errors.New("failed to check device user, " + err.Error())
+	}
+
 
 	s.redisAuthRepo.SetToken(ctx, existingUser.ID, hashedRefreshToken)
 
@@ -113,6 +117,7 @@ func (s *AuthService) LoginController(ctx context.Context, user *entity.User) (*
 		User:         existingUser,
 		AccessToken:  accessToken,
 		RefreshToken: refreshToken,
+		IsPaired:     paired,
 	}, nil
 
 }

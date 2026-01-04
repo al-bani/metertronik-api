@@ -9,6 +9,7 @@ type UsersRepoPostgres interface {
 	CreateUser(ctx context.Context, user *entity.User) error
 	GetUser(ctx context.Context, email string, username string) (*entity.User, error)
 	UpdateUser(ctx context.Context, user *entity.User) error
+	CheckDeviceUser(ctx context.Context, userId int64) (bool, error)
 }
 
 type UsersRepoRedis interface {
