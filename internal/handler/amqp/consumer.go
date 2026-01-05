@@ -203,6 +203,8 @@ func processMessages(c *Consumer, ctx context.Context, msgs <-chan amqp.Delivery
 
 			var data entity.RealTimeElectricity
 
+			log.Printf("Message body: %s", string(d.Body))
+
 			log.Printf("Unmarshaling message body (size: %d bytes)...", len(d.Body))
 			err := json.Unmarshal(d.Body, &data)
 			if err != nil {

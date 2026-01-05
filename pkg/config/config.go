@@ -45,9 +45,9 @@ type Config struct {
 
 	ConsumerLogInterval time.Duration
 
-	SendgridAPIKey string
+	SendgridAPIKey    string
 	SendgridFromEmail string
-	SendgridFromName string
+	SendgridFromName  string
 
 	SECRETKEY string
 }
@@ -72,9 +72,13 @@ func Load() (*Config, error) {
 		RedisPassword: getEnv("REDIS_PASSWORD", ""),
 		RedisDB:       redisDB,
 
-		RabbitMQURL:           getEnv("RABBITMQ_URL", ""),
-		RabbitMQQueueName:     getEnv("RABBITMQ_QUEUE_NAME", "electricity_queue"),
-		RabbitMQRoutingKey:    getEnv("RABBITMQ_ROUTING_KEY", "electricity_metrics"),
+		RabbitMQURL:       getEnv("RABBITMQ_URL", ""),
+		RabbitMQQueueName: getEnv("RABBITMQ_QUEUE_NAME", "electricity_queue"),
+		// NOTE:
+		// Jika sumber data dari MQTT plugin RabbitMQ, topic MQTT biasanya dipetakan ke routing key AMQP
+		// (umumnya '/' menjadi '.'). Firmware publish ke "electricity/device/<deviceId>" => routing key "electricity.device.<deviceId>".
+		// Karena itu default routing key yang aman adalah pattern "electricity.device.#".
+		RabbitMQRoutingKey:    getEnv("RABBITMQ_ROUTING_KEY", "electricity.device.#"),
 		RabbitMQExchange:      getEnv("RABBITMQ_EXCHANGE", "amq.topic"),
 		RabbitMQPrefetchCount: rabbitMQPrefetchCount,
 		RabbitMQRetryDelay:    time.Duration(rabbitMQRetryDelaySeconds) * time.Second,
@@ -98,9 +102,9 @@ func Load() (*Config, error) {
 
 		ConsumerLogInterval: time.Duration(consumerLogIntervalSeconds) * time.Second,
 
-		SendgridAPIKey: getEnv("SENDGRID_API_KEY", ""),
+		SendgridAPIKey:    getEnv("SENDGRID_API_KEY", ""),
 		SendgridFromEmail: getEnv("SENDGRID_FROM_EMAIL", ""),
-		SendgridFromName: getEnv("SENDGRID_FROM_NAME", ""),
+		SendgridFromName:  getEnv("SENDGRID_FROM_NAME", ""),
 
 		SECRETKEY: getEnv("SECRET_KEY_SERVER", ""),
 	}, nil
