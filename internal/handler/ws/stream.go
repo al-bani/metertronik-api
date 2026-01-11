@@ -40,12 +40,11 @@ func NewStreamHandler(RedisRealtimeRepo repository.RedisRealtimeRepo) *StreamHan
 func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, deviceID string) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Failed to upgrade WebSocket connection: %v", err)
 		return
 	}
 	defer conn.Close()
 
-	log.Printf("WebSocket client connected for device: %s", deviceID)
+	log.Printf("\n\n[%s]\nWebSocket client connected (%s)", time.Now().Format("2006-01-02 15:04:05"), deviceID)
 
 	conn.SetReadDeadline(utils.TimeNow().Time.Add(pongWait))
 	conn.SetPongHandler(func(string) error {
@@ -71,7 +70,6 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 			case <-pingTicker.C:
 				conn.SetWriteDeadline(utils.TimeNow().Time.Add(writeWait))
 				if err := conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-					log.Printf("Failed to send ping: %v", err)
 					return
 				}
 			case <-ctx.Done():
@@ -87,18 +85,15 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 		case <-dataTicker.C:
 			data, err := h.RedisRealtimeRepo.GetLatestElectricity(ctx, deviceID)
 			if err != nil {
-				log.Printf("Error getting latest electricity data: %v", err)
 				continue
 			}
 
 			if data == nil {
-				log.Printf("No data available in cache for device %s", deviceID)
 				continue
 			}
 
 			dataJSON, err := json.Marshal(data)
 			if err != nil {
-				log.Printf("Error marshaling data: %v", err)
 				continue
 			}
 			currentHash := string(dataJSON)
@@ -109,18 +104,17 @@ func (h *StreamHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request, 
 
 			conn.SetWriteDeadline(utils.TimeNow().Time.Add(writeWait))
 			if err := conn.WriteJSON(data); err != nil {
-				log.Printf("Error writing message: %v", err)
 				return
 			}
 
 			lastDataHash = currentHash
-			log.Printf("Sent data update for device %s", deviceID)
+			log.Printf("Send data to Websocket")
 
 		case <-done:
-			log.Printf("WebSocket connection closed for device: %s", deviceID)
+			log.Printf("WebSocket closed")
 			return
 		case <-ctx.Done():
-			log.Printf("Context cancelled for device: %s", deviceID)
+			log.Printf("WebSocket context cancelled")
 			return
 		}
 	}

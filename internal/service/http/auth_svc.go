@@ -110,6 +110,8 @@ func (s *AuthService) LoginController(ctx context.Context, user *entity.User) (*
 		return nil, errors.New("failed to check device user, " + err.Error())
 	}
 
+	log.Println("paired, LoginController : ", paired)
+
 
 	s.redisAuthRepo.SetToken(ctx, existingUser.ID, hashedRefreshToken)
 

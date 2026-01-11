@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
 	"time"
@@ -42,6 +43,7 @@ func (r *RedisRealtimeRepo) SetLatestElectricity(ctx context.Context, deviceID s
 		return fmt.Errorf("failed to marshal latest electricity: %w", err)
 	}
 
+	log.Printf("Save Latest Data to Redis")
 	if err := r.client.Set(ctx, key, data, 0).Err(); err != nil {
 		return fmt.Errorf("failed to set latest cache: %w", err)
 	}

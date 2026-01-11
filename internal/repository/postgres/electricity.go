@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"fmt"
+	"log"
 	"metertronik/internal/domain/entity"
 	"metertronik/pkg/utils"
 
@@ -39,6 +40,8 @@ func (r *ElectricityRepoPostgres) SaveDailyElectricity(ctx context.Context, dail
 
 func (r *ElectricityRepoPostgres) GetTarrifs(ctx context.Context) (*entity.Tarrifs, error) {
 	var tarrifs entity.Tarrifs
+
+	log.Println("GetTarrifs: ", utils.TimeNow())
 
 	if err := r.db.WithContext(ctx).Table("tarrifs").Where("effective_from <= ? AND (effective_to IS NULL OR effective_to >= ?)", utils.TimeNow(), utils.TimeNow()).First(&tarrifs).Error; err != nil {
 		return nil, fmt.Errorf("failed to get tarrifs: %w", err)

@@ -7,6 +7,7 @@ import (
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/domain/repository"
 	"metertronik/pkg/utils"
+	"strings"
 	"time"
 )
 
@@ -23,25 +24,23 @@ func NewIngestService(influxRepo repository.InfluxRepo, RedisRealtimeRepo reposi
 }
 
 func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *entity.RealTimeElectricity) error {
-	log.Printf("\n\nProcessing electricity data for device: %s", data.DeviceID)
-
+	log.Printf("Checking Data...")
 	previousData, err := s.RedisRealtimeRepo.GetLatestElectricity(ctx, data.DeviceID)
 
 	if err != nil {
-		log.Printf("Error getting previous electricity data: %v", err)
 		data.PowerSurge = 0
 		data.PSPercent = 0
 	} else if previousData == nil {
 		data.PowerSurge = 0
 		data.PSPercent = 0
 	} else {
+		log.Printf("Using previousData")
 		data.PowerSurge = math.Abs(data.Power - previousData.Power)
-		minBaseline := 50.0
-
-		if previousData.Power >= minBaseline {
+		// PSPercent harus dihitung terhadap nilai sebelumnya (selama bukan 0),
+		// jangan diblok dengan minBaseline besar (ini bikin trigger threshold sering miss).
+		if previousData.Power != 0 {
 			data.PSPercent = math.Abs((data.PowerSurge / previousData.Power) * 100)
 		} else {
-			log.Printf("Previous power is 0, setting PSPercent to 0")
 			data.PSPercent = 0
 		}
 	}
@@ -51,52 +50,64 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 	}
 
 	errInflux := s.influxRepo.SaveRealTimeElectricity(ctx, data)
+	_ = errInflux
 
-	if errInflux != nil {
-		log.Printf("Error saving real time electricity to influx: %v", errInflux)
-	} else {
-		log.Println("Saving data to influxDB : ", data)
-	}
-
-	// Jika previousData == nil, ini adalah data pertama, selalu cache
 	if previousData == nil {
-		log.Printf("First data for device %s, caching immediately", data.DeviceID)
+		log.Printf("Save Latest Data to Redis")
 		if err := s.RedisRealtimeRepo.SetLatestElectricity(ctx, data.DeviceID, data); err != nil {
-			log.Printf("Failed saving latest cache: %v", err)
-		} else {
-			log.Println("Updated latest cache data")
+			_ = err
 		}
 
 		if err := s.RedisRealtimeRepo.SaveElectricityHistory(ctx, data.DeviceID, data, 5*time.Minute); err != nil {
-			log.Printf("Failed saving history cache: %v", err)
+			_ = err
 		}
-		return nil
-	}
-
-	changed, _, err := s.RedisRealtimeRepo.HasChanged(ctx, data.DeviceID, data)
-	if err != nil {
-		log.Printf("Error comparing cache: %v", err)
-	}
-
-	if !changed {
-		log.Printf("No change for device %s (skip caching)", data.DeviceID)
 		return nil
 	}
 
 	proximityValue := ProximityValue(previousData, data)
 	if !proximityValue {
-		log.Printf("No significant change for device %s, skipping caching", data.DeviceID)
+		log.Printf("no data exceeds the threshold")
 		return nil
 	}
 
-	if err := s.RedisRealtimeRepo.SetLatestElectricity(ctx, data.DeviceID, data); err != nil {
-		log.Printf("Failed saving latest cache: %v", err)
+	threshold := 5.0
+	var reasons []string
+	if data.PowerSurge > 100.0 {
+		reasons = append(reasons, "PowerSurge>100")
+	}
+	if data.PSPercent > 5.0 {
+		reasons = append(reasons, "PSPercent>5")
+	}
+	if diff := percentageDiff(data.Power, previousData.Power); diff >= threshold {
+		reasons = append(reasons, "Power>=5%")
+	}
+	if diff := percentageDiff(data.Voltage, previousData.Voltage); diff >= threshold {
+		reasons = append(reasons, "Voltage>=5%")
+	}
+	if diff := percentageDiff(data.Current, previousData.Current); diff >= threshold {
+		reasons = append(reasons, "Current>=5%")
+	}
+	if diff := percentageDiff(data.Energy, previousData.Energy); diff >= threshold {
+		reasons = append(reasons, "Energy>=5%")
+	}
+	if diff := percentageDiff(data.PowerFactor, previousData.PowerFactor); diff >= threshold {
+		reasons = append(reasons, "PowerFactor>=5%")
+	}
+	if diff := percentageDiff(data.Frequency, previousData.Frequency); diff >= threshold {
+		reasons = append(reasons, "Frequency>=5%")
+	}
+	if len(reasons) > 0 {
+		log.Printf("data exceeds the threshold: %s", strings.Join(reasons, ", "))
 	} else {
-		log.Println("Updated latest cache data")
+		log.Printf("data exceeds the threshold")
+	}
+	log.Printf("Save Latest Data to Redis")
+	if err := s.RedisRealtimeRepo.SetLatestElectricity(ctx, data.DeviceID, data); err != nil {
+		_ = err
 	}
 
 	if err := s.RedisRealtimeRepo.SaveElectricityHistory(ctx, data.DeviceID, data, 5*time.Minute); err != nil {
-		log.Printf("Failed saving history cache: %v", err)
+		_ = err
 	}
 
 	return nil
@@ -104,7 +115,11 @@ func (s *IngestService) ProcessRealTimeElectricity(ctx context.Context, data *en
 
 func percentageDiff(current, previous float64) float64 {
 	if previous == 0 {
-		return 0
+		// kalau previous = 0 dan current != 0, ini perubahan signifikan (hindari miss update)
+		if current == 0 {
+			return 0
+		}
+		return math.Inf(1)
 	}
 	return math.Abs(((current - previous) / previous) * 100)
 }
@@ -114,7 +129,7 @@ func ProximityValue(previousData *entity.RealTimeElectricity, data *entity.RealT
 		return false
 	}
 
-	threshold := 10.0
+	threshold := 5.0
 
 	diffPower := percentageDiff(data.Power, previousData.Power)
 	diffVoltage := percentageDiff(data.Voltage, previousData.Voltage)
@@ -123,7 +138,7 @@ func ProximityValue(previousData *entity.RealTimeElectricity, data *entity.RealT
 	diffPF := percentageDiff(data.PowerFactor, previousData.PowerFactor)
 	diffFreq := percentageDiff(data.Frequency, previousData.Frequency)
 
-	if data.PowerSurge > 500.0 || data.PSPercent > 15.0 {
+	if data.PowerSurge > 100.0 || data.PSPercent > 5.0 {
 		return true
 	}
 

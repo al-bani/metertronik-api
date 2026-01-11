@@ -6,7 +6,6 @@ import (
 	"log"
 	"metertronik/internal/domain/entity"
 	"metertronik/internal/service"
-	"metertronik/pkg/utils"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -37,9 +36,7 @@ func (c *Consumer) StartConsuming(ctx context.Context, connStr string) error {
 	retryDelay := c.cfg.RetryDelay
 
 	for {
-		err := c.consumeWithReconnect(ctx, connStr)
-		if err != nil {
-		}
+		_ = c.consumeWithReconnect(ctx, connStr)
 
 		select {
 		case <-ctx.Done():
@@ -81,9 +78,6 @@ func (c *Consumer) consumeWithReconnect(ctx context.Context, connStr string) err
 	)
 	if err != nil {
 		if amqpErr, ok := err.(*amqp.Error); ok && amqpErr.Code == 406 {
-			log.Printf("   Error Code: %d", amqpErr.Code)
-			log.Printf("   Error Reason: %s", amqpErr.Reason)
-
 			q, err = ch.QueueDeclare(
 				c.cfg.QueueName,
 				true,
@@ -93,18 +87,9 @@ func (c *Consumer) consumeWithReconnect(ctx context.Context, connStr string) err
 				nil,
 			)
 			if err != nil {
-				if amqpErr2, ok := err.(*amqp.Error); ok {
-					log.Printf("   Error Code: %d", amqpErr2.Code)
-					log.Printf("   Error Reason: %s", amqpErr2.Reason)
-				}
 				return err
 			}
 		} else {
-			if amqpErr, ok := err.(*amqp.Error); ok {
-				log.Printf("   Error Code: %d", amqpErr.Code)
-				log.Printf("   Error Reason: %s", amqpErr.Reason)
-				log.Printf("   Error Server: %v", amqpErr.Server)
-			}
 			return err
 		}
 	}
@@ -117,10 +102,6 @@ func (c *Consumer) consumeWithReconnect(ctx context.Context, connStr string) err
 		nil,
 	)
 	if err != nil {
-		if amqpErr, ok := err.(*amqp.Error); ok {
-			log.Printf("   Error Code: %d", amqpErr.Code)
-			log.Printf("   Error Reason: %s", amqpErr.Reason)
-		}
 		return err
 	}
 
@@ -142,10 +123,6 @@ func (c *Consumer) consumeWithReconnect(ctx context.Context, connStr string) err
 		nil,
 	)
 	if err != nil {
-		if amqpErr, ok := err.(*amqp.Error); ok {
-			log.Printf("   Error Code: %d", amqpErr.Code)
-			log.Printf("   Error Reason: %s", amqpErr.Reason)
-		}
 		return err
 	}
 
@@ -155,17 +132,10 @@ func (c *Consumer) consumeWithReconnect(ctx context.Context, connStr string) err
 
 	select {
 	case err := <-notifyClose:
-		if err != nil {
-		}
 		return err
 	case err := <-notifyChanClose:
-		if err != nil {
-		}
 		return err
 	case err := <-done:
-		if err != nil {
-		} else {
-		}
 		return err
 	case <-ctx.Done():
 		return ctx.Err()
@@ -176,51 +146,32 @@ func processMessages(c *Consumer, ctx context.Context, msgs <-chan amqp.Delivery
 	defer close(done)
 
 	messageCount := 0
-	lastMessageTime := utils.TimeNow()
-	ticker := time.NewTicker(c.cfg.LogInterval)
-	defer ticker.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			done <- ctx.Err()
 			return
-		case <-ticker.C:
-			elapsed := utils.TimeSince(lastMessageTime)
-			log.Printf("Still waiting for messages... (Last message: %d, Elapsed since last: %v)", messageCount, elapsed)
 		case d, ok := <-msgs:
 			if !ok {
-				log.Printf("Message channel closed. Processed total %d messages", messageCount)
-				log.Printf("Channel closed without error - will reconnect")
 				done <- nil
 				return
 			}
 
 			messageCount++
-			lastMessageTime = utils.TimeNow()
-			log.Printf("Received message #%d", messageCount)
-			log.Printf("Message delivery tag: %d, Exchange: %s, RoutingKey: %s", d.DeliveryTag, d.Exchange, d.RoutingKey)
+
+			log.Printf("\n\n[%s]\nReceiving Data...\nChecking Data...", time.Now().Format("2006-01-02 15:04:05"))
 
 			var data entity.RealTimeElectricity
-
-			log.Printf("Message body: %s", string(d.Body))
-
-			log.Printf("Unmarshaling message body (size: %d bytes)...", len(d.Body))
 			err := json.Unmarshal(d.Body, &data)
 			if err != nil {
-				log.Printf("Failed to unmarshal message: %v", err)
-				log.Printf("   Message body: %s", string(d.Body))
+				log.Printf("invalid payload, skip")
 				continue
 			}
-			log.Printf("Message unmarshaled successfully. DeviceID: %s", data.DeviceID)
 
-			log.Printf("Processing electricity data for device: %s...", data.DeviceID)
 			if err := c.svc.ProcessRealTimeElectricity(ctx, &data); err != nil {
-				log.Printf("Error processing electricity data: %v", err)
-			}
-
-			if messageCount == 20 {
-				log.Printf("===== Reached message #20, continuing to wait for message #21... =====")
+				log.Printf("failed processing data")
+				continue
 			}
 		}
 	}

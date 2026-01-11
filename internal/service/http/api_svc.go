@@ -299,6 +299,7 @@ func (s *ApiService) DayNowActivity(ctx context.Context, deviceID string) (*Dail
 
 	tarrifs, err := s.postgresRepo.GetTarrifs(ctx)
 	if err != nil {
+		log.Println("GetTarrifs: ", err)
 		return nil, err
 	}
 
